@@ -649,7 +649,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 // ── SUPABASE ──
 const SUPABASE_URL = 'https://gktsnbnpqexdldzpmgnh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrdHNuYm5wcWV4ZGxkenBtZ25oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMzE2MjgsImV4cCI6MjA5MzgwNzYyOH0.D5W2WkHpTMD5uk3SSx2LY8I76GYaQuH7LF1CD24hKls';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const USER_ID = 'default-user';
 
 // ── STATE ──
@@ -670,7 +670,7 @@ const BASELINE = { Italiano: 280*60, Alemão: 10*60 };
 
 async function loadLogsFromSupabase() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sbClient
       .from('logs')
       .select('*')
       .eq('user_id', USER_ID)
@@ -725,7 +725,7 @@ function updateStreakState() {
 
 async function saveLogToSupabase(log) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sbClient
       .from('logs')
       .insert([{
         user_id: USER_ID,
