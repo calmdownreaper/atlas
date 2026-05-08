@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
 
@@ -645,6 +646,12 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 <div class="toast" id="toast"></div>
 
 <script>
+// ── SUPABASE ──
+const SUPABASE_URL = 'https://gktsnbnpqexdldzpmgnh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrdHNuYm5wcWV4ZGxkenBtZ25oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMzE2MjgsImV4cCI6MjA5MzgwNzYyOH0.D5W2WkHpTMD5uk3SSx2LY8I76GYaQuH7LF1CD24hKls';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const USER_ID = 'default-user';
+
 // ── STATE ──
 const XP_RATE = { medicina:15, idiomas:12, habitos:8, credencial:20 };
 const LEVELS = [
@@ -656,14 +663,88 @@ const LEVELS = [
   {min:9000, title:'Especialista'},
 ];
 
-let S = JSON.parse(localStorage.getItem('atlas2') || 'null') || {
+let S = {
   logs:[], totalXP:0, streak:0, bestStreak:0, lastDate:null
 };
-// Baseline offset: horas pré-existentes antes do tracker (nível declarado)
-// IT: B1 real = 250h de threshold + ~30h de margem no nível = 280h baseline
-// DE: A1 real, mas com alguma base = 10h baseline
 const BASELINE = { Italiano: 280*60, Alemão: 10*60 };
-function save() { localStorage.setItem('atlas2', JSON.stringify(S)); }
+
+async function loadLogsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('logs')
+      .select('*')
+      .eq('user_id', USER_ID)
+      .order('ts', { ascending: false });
+
+    if (error) { console.error('Error loading logs:', error); return; }
+
+    S.logs = (data || []).map(log => ({
+      id: log.id,
+      cat: log.cat,
+      sub: log.sub,
+      dur: log.dur,
+      desc: log.description,
+      qual: log.qual,
+      mood: log.mood,
+      xp: log.xp,
+      date: log.date,
+      ts: log.ts
+    }));
+
+    S.totalXP = S.logs.reduce((a, l) => a + l.xp, 0);
+    updateStreakState();
+    renderAll();
+  } catch (err) { console.error('Failed to load logs:', err); }
+}
+
+function updateStreakState() {
+  const t = today();
+  const sortedDates = [...new Set(S.logs.map(l => l.date))].sort().reverse();
+
+  if (!sortedDates.length) { S.streak = 0; S.bestStreak = 0; S.lastDate = null; return; }
+
+  S.lastDate = sortedDates[0];
+  const today_ = new Date(t);
+  const last_ = new Date(sortedDates[0]);
+  const diff = Math.round((today_ - last_) / 86400000);
+
+  if (diff > 1) { S.streak = 1; }
+  else {
+    S.streak = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
+      const curr = new Date(sortedDates[i]);
+      const prev = new Date(sortedDates[i-1]);
+      const dayDiff = Math.round((prev - curr) / 86400000);
+      if (dayDiff === 1) S.streak++;
+      else break;
+    }
+  }
+
+  if (S.streak > S.bestStreak) S.bestStreak = S.streak;
+}
+
+async function saveLogToSupabase(log) {
+  try {
+    const { data, error } = await supabase
+      .from('logs')
+      .insert([{
+        user_id: USER_ID,
+        date: log.date,
+        cat: log.cat,
+        sub: log.sub,
+        dur: log.dur,
+        description: log.desc,
+        qual: log.qual,
+        mood: log.mood,
+        xp: log.xp,
+        ts: log.ts
+      }])
+      .select();
+
+    if (error) { console.error('Error saving log:', error); return null; }
+    return data?.[0];
+  } catch (err) { console.error('Failed to save log:', err); return null; }
+}
 
 function today() { return new Date().toISOString().slice(0,10); }
 function fmtH(m) { return m < 60 ? m+'m' : (m/60).toFixed(1).replace('.0','')+'h'; }
@@ -686,14 +767,6 @@ function calcLevel(xp) {
   const pct = Math.min(100,Math.round((xp-LEVELS[i].min)/(next-LEVELS[i].min)*100));
   return { lvl:i+1, title:LEVELS[i].title, pct, toNext:next-xp };
 }
-function updateStreak() {
-  const t=today();
-  if(!S.lastDate) S.streak=1;
-  else if(S.lastDate===t) {}
-  else { const diff=Math.round((new Date(t)-new Date(S.lastDate))/86400000); S.streak = diff===1 ? S.streak+1 : 1; }
-  S.lastDate=t;
-  if(S.streak>S.bestStreak) S.bestStreak=S.streak;
-}
 
 // ── NAVIGATION ──
 function switchPage(name, btn) {
@@ -713,7 +786,7 @@ function setStatTab(tab, btn) {
 }
 
 // ── ADD LOG ──
-function addLog() {
+async function addLog() {
   const cat=document.getElementById('fCat').value;
   const sub=document.getElementById('fSub').value;
   const dur=parseInt(document.getElementById('fDur').value)||0;
@@ -722,10 +795,16 @@ function addLog() {
   const mood=document.getElementById('fMood').value;
   if(!dur){showToast('Informe a duração');return;}
   const xp=Math.round((dur/30)*XP_RATE[cat]*(qual/3));
-  S.logs.unshift({cat,sub,dur,desc,qual,mood,xp,date:today(),ts:Date.now()});
+  const ts=Date.now();
+  const log={cat,sub,dur,desc,qual,mood,xp,date:today(),ts};
+
+  const saved = await saveLogToSupabase(log);
+  if (!saved) { showToast('Erro ao salvar log'); return; }
+
+  log.id = saved.id;
+  S.logs.unshift(log);
   S.totalXP+=xp;
-  updateStreak();
-  save();
+  updateStreakState();
   document.getElementById('fDur').value='';
   document.getElementById('fDesc').value='';
   renderAll();
@@ -853,7 +932,7 @@ function renderLog() {
   if(!S.logs.length){ el.innerHTML='<div style="font-size:14px;color:var(--sub);padding:20px 0">Nenhuma entrada ainda.</div>'; return; }
   const colors={medicina:BL,idiomas:GR,habitos:AM,credencial:RD};
   el.innerHTML=S.logs.slice(0,25).map(l=>`
-    <div class="log-entry">
+    <div class="log-entry" style="position:relative">
       <div class="log-dot" style="background:${colors[l.cat]}"></div>
       <div class="log-entry-left">
         <div class="log-entry-name">${l.desc}</div>
@@ -862,6 +941,7 @@ function renderLog() {
       <div class="log-entry-right">
         <div class="log-entry-dur">${fmtH(l.dur)}</div>
         <div class="log-entry-xp">+${l.xp} xp</div>
+        <button onclick="deleteLog(${l.id})" style="background:none;border:none;color:var(--sub);cursor:pointer;font-size:12px;margin-top:4px;padding:0">✕ Deletar</button>
       </div>
     </div>`).join('');
 }
@@ -1314,6 +1394,32 @@ function renderLang() {
   renderOneLang('Alemão',  'de', AM, deMilestones, 650, 'Meta: 650h (B2)', deEffective);
 }
 
+async function deleteLogFromSupabase(logId) {
+  try {
+    const { error } = await supabase
+      .from('logs')
+      .delete()
+      .eq('id', logId);
+
+    if (error) { console.error('Error deleting log:', error); return false; }
+    return true;
+  } catch (err) { console.error('Failed to delete log:', err); return false; }
+}
+
+async function deleteLog(logId) {
+  const success = await deleteLogFromSupabase(logId);
+  if (!success) { showToast('Erro ao deletar'); return; }
+
+  const log = S.logs.find(l => l.id === logId);
+  if (log) {
+    S.totalXP -= log.xp;
+    S.logs = S.logs.filter(l => l.id !== logId);
+    updateStreakState();
+    renderAll();
+    showToast('Log deletado');
+  }
+}
+
 function renderAll() {
   renderHome();
   renderLog();
@@ -1322,7 +1428,7 @@ function renderAll() {
   renderLang();
 }
 
-renderAll();
+loadLogsFromSupabase();
 </script>
 </body>
 </html>
