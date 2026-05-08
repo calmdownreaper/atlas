@@ -30,6 +30,10 @@
 
 html, body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
 
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(61,220,132,0.3); border-radius: 4px; }
+
 /* ── BOTTOM NAV ── */
 .bnav {
   position: fixed; bottom: 0; left: 0; right: 0;
@@ -105,7 +109,16 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 /* ── MINI GRID ── */
 .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
 .mini-card {
-  background: var(--surface); padding: 20px; border-radius: 0;
+  background: rgba(17,17,17,0.5);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+  border-radius: 0;
+  border: 1px solid rgba(61,220,132,0.15);
+  transition: all 0.25s ease;
+}
+.mini-card:hover {
+  background: rgba(17,17,17,0.7);
+  border-color: rgba(61,220,132,0.25);
 }
 .mini-card:first-child { border-radius: var(--r) 0 0 0; }
 .mini-card:nth-child(2) { border-radius: 0 var(--r) 0 0; }
