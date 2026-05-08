@@ -786,7 +786,7 @@ function setStatTab(tab, btn) {
 }
 
 // ── ADD LOG ──
-async function addLog() {
+function addLog() {
   const cat=document.getElementById('fCat').value;
   const sub=document.getElementById('fSub').value;
   const dur=parseInt(document.getElementById('fDur').value)||0;
@@ -798,17 +798,17 @@ async function addLog() {
   const ts=Date.now();
   const log={cat,sub,dur,desc,qual,mood,xp,date:today(),ts};
 
-  const saved = await saveLogToSupabase(log);
-  if (!saved) { showToast('Erro ao salvar log'); return; }
-
-  log.id = saved.id;
-  S.logs.unshift(log);
-  S.totalXP+=xp;
-  updateStreakState();
-  document.getElementById('fDur').value='';
-  document.getElementById('fDesc').value='';
-  renderAll();
-  showToast(`+${xp} XP`);
+  saveLogToSupabase(log).then(saved => {
+    if (!saved) { showToast('Erro ao salvar log'); return; }
+    log.id = saved.id;
+    S.logs.unshift(log);
+    S.totalXP+=xp;
+    updateStreakState();
+    document.getElementById('fDur').value='';
+    document.getElementById('fDesc').value='';
+    renderAll();
+    showToast(`+${xp} XP`);
+  });
 }
 
 // ── TOAST ──
@@ -1406,18 +1406,18 @@ async function deleteLogFromSupabase(logId) {
   } catch (err) { console.error('Failed to delete log:', err); return false; }
 }
 
-async function deleteLog(logId) {
-  const success = await deleteLogFromSupabase(logId);
-  if (!success) { showToast('Erro ao deletar'); return; }
-
-  const log = S.logs.find(l => l.id === logId);
-  if (log) {
-    S.totalXP -= log.xp;
-    S.logs = S.logs.filter(l => l.id !== logId);
-    updateStreakState();
-    renderAll();
-    showToast('Log deletado');
-  }
+function deleteLog(logId) {
+  deleteLogFromSupabase(logId).then(success => {
+    if (!success) { showToast('Erro ao deletar'); return; }
+    const log = S.logs.find(l => l.id === logId);
+    if (log) {
+      S.totalXP -= log.xp;
+      S.logs = S.logs.filter(l => l.id !== logId);
+      updateStreakState();
+      renderAll();
+      showToast('Log deletado');
+    }
+  });
 }
 
 function renderAll() {
