@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATLAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+
+:root {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface2: #181818;
+  --line: #1f1f1f;
+  --text: #f0f0f0;
+  --sub: #666;
+  --sub2: #444;
+  --green: #3ddc84;
+  --blue: #5b9cf6;
+  --amber: #f5a623;
+  --red: #ff5f5f;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --r: 18px;
+}
+
+html, body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 12px 0 28px;
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--line);
+  z-index: 100;
+}
+.bnav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  color: var(--sub); font-family: var(--sans); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.04em; transition: color 0.2s; padding: 0 20px;
+}
+.bnav-btn .icon { font-size: 20px; line-height: 1; }
+.bnav-btn.active { color: var(--text); }
+.bnav-btn.active .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--green); margin: 0 auto; }
+
+/* ── PAGES ── */
+.page { display: none; padding: 56px 24px 110px; max-width: 480px; margin: 0 auto; }
+.page.active { display: block; animation: up 0.35s cubic-bezier(.2,0,.1,1); }
+@keyframes up { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── TYPOGRAPHY SCALE ── */
+.page-title {
+  font-size: 13px; font-weight: 500; letter-spacing: 0.12em;
+  color: var(--sub); text-transform: uppercase; margin-bottom: 32px;
+}
+
+.big-num { font-size: 56px; font-weight: 300; line-height: 1; color: var(--text); letter-spacing: -0.02em; }
+.big-unit { font-size: 20px; font-weight: 400; color: var(--sub); margin-left: 4px; }
+.big-label { font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); margin-bottom: 8px; }
+.big-delta { font-size: 13px; font-weight: 500; color: var(--green); margin-top: 6px; }
+.big-delta.neg { color: var(--red); }
+.big-delta.neu { color: var(--sub); }
+
+/* ── SECTION ── */
+.section { margin-bottom: 48px; }
+.section-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 20px;
+}
+.section-label { font-size: 13px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); }
+.section-action { font-size: 13px; color: var(--green); font-weight: 500; cursor: pointer; }
+
+/* ── DIVIDER ── */
+.div { height: 1px; background: var(--line); margin: 32px 0; }
+
+/* ── ROW STAT ── */
+.row-stat {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 0; border-bottom: 1px solid var(--line);
+}
+.row-stat:last-child { border-bottom: none; }
+.row-stat-left { display: flex; flex-direction: column; gap: 3px; }
+.row-stat-name { font-size: 15px; font-weight: 400; color: var(--text); }
+.row-stat-sub { font-size: 12px; color: var(--sub); }
+.row-stat-val { font-family: var(--mono); font-size: 15px; color: var(--text); font-weight: 400; }
+.row-stat-val.green { color: var(--green); }
+.row-stat-val.amber { color: var(--amber); }
+.row-stat-val.blue  { color: var(--blue); }
+
+/* ── PROGRESS BAR ── */
+.prog { margin-bottom: 20px; }
+.prog-top { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.prog-name { font-size: 14px; color: var(--text); font-weight: 400; }
+.prog-val { font-family: var(--mono); font-size: 13px; color: var(--sub); }
+.prog-track { height: 2px; background: var(--line); border-radius: 2px; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+/* ── MINI GRID ── */
+.mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.mini-card {
+  background: var(--surface); padding: 20px; border-radius: 0;
+}
+.mini-card:first-child { border-radius: var(--r) 0 0 0; }
+.mini-card:nth-child(2) { border-radius: 0 var(--r) 0 0; }
+.mini-card:nth-last-child(2) { border-radius: 0 0 0 var(--r); }
+.mini-card:last-child { border-radius: 0 0 var(--r) 0; }
+.mini-card-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); margin-bottom: 12px; }
+.mini-card-val { font-size: 28px; font-weight: 300; color: var(--text); line-height: 1; letter-spacing: -0.01em; }
+.mini-card-unit { font-size: 13px; color: var(--sub); margin-left: 3px; }
+.mini-card-sub { font-size: 11px; color: var(--sub); margin-top: 6px; }
+
+/* ── CHART ── */
+.chart-wrap { position: relative; height: 140px; margin: 4px 0; }
+.chart-wrap.tall { height: 200px; }
+
+/* ── HEATMAP ── */
+.heatmap-wrap { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
+.hm-col { display: flex; flex-direction: column; gap: 3px; }
+.hm-cell { aspect-ratio: 1; border-radius: 2px; background: var(--surface2); }
+.hm-cell.l1 { background: rgba(61,220,132,0.2); }
+.hm-cell.l2 { background: rgba(61,220,132,0.45); }
+.hm-cell.l3 { background: rgba(61,220,132,0.7); }
+.hm-cell.l4 { background: var(--green); }
+
+/* ── STREAK PILLS ── */
+.streak-pills { display: flex; gap: 6px; margin-top: 6px; }
+.streak-pill {
+  flex: 1; height: 3px; border-radius: 3px;
+  background: var(--line); transition: background 0.3s;
+}
+.streak-pill.on { background: var(--green); }
+.streak-pill.amber { background: var(--amber); }
+.streak-pill.blue  { background: var(--blue); }
+
+/* ── LEVEL SECTION ── */
+.level-wrap { margin-bottom: 40px; }
+.level-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
+.level-name { font-size: 22px; font-weight: 300; color: var(--text); }
+.level-num { font-family: var(--mono); font-size: 13px; color: var(--sub); }
+.level-track { height: 3px; background: var(--line); border-radius: 3px; }
+.level-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--blue), var(--green)); transition: width 1s cubic-bezier(.4,0,.2,1); }
+.level-sub { font-size: 12px; color: var(--sub); margin-top: 8px; }
+
+/* ── XP BADGE ── */
+.xp-inline { display: inline-flex; align-items: center; gap: 5px; background: var(--surface2); border-radius: 20px; padding: 4px 12px; font-family: var(--mono); font-size: 12px; color: var(--green); }
+
+/* ── LOG FORM ── */
+.log-section { margin-bottom: 40px; }
+.field { margin-bottom: 20px; }
+.field label { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); margin-bottom: 10px; }
+.field input, .field select {
+  width: 100%; background: none; border: none; border-bottom: 1px solid var(--line);
+  color: var(--text); font-family: var(--sans); font-size: 17px; font-weight: 300;
+  padding: 0 0 12px; outline: none; -webkit-appearance: none; appearance: none;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field select:focus { border-bottom-color: var(--green); }
+.field input::placeholder { color: var(--sub2); }
+.field select option { background: #111; }
+
+.btn-submit {
+  width: 100%; padding: 18px;
+  background: var(--green); color: #000;
+  font-family: var(--sans); font-size: 15px; font-weight: 600; letter-spacing: 0.04em;
+  border: none; border-radius: 14px; cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: 0.85; }
+
+/* ── LOG ENTRIES ── */
+.log-entry {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 0; border-bottom: 1px solid var(--line);
+  animation: up 0.3s ease;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.log-entry-left { flex: 1; }
+.log-entry-name { font-size: 15px; color: var(--text); font-weight: 400; }
+.log-entry-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+.log-entry-right { text-align: right; }
+.log-entry-dur { font-family: var(--mono); font-size: 14px; color: var(--text); }
+.log-entry-xp { font-family: var(--mono); font-size: 11px; color: var(--green); margin-top: 2px; }
+
+/* ── ACHIEVEMENTS ── */
+.ach-list { display: flex; flex-direction: column; }
+.ach-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid var(--line);
+}
+.ach-row:last-child { border-bottom: none; }
+.ach-icon-wrap {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--surface2); display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.ach-row:not(.unlocked) .ach-icon-wrap { filter: grayscale(1); opacity: 0.35; }
+.ach-info { flex: 1; }
+.ach-name { font-size: 15px; color: var(--text); font-weight: 400; }
+.ach-desc { font-size: 12px; color: var(--sub); margin-top: 2px; }
+.ach-badge { font-family: var(--mono); font-size: 11px; color: var(--green); padding: 3px 9px; background: rgba(61,220,132,0.1); border-radius: 20px; }
+.ach-row:not(.unlocked) .ach-badge { color: var(--sub2); background: none; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(10px);
+  background: var(--surface2); color: var(--text); font-family: var(--sans); font-size: 14px;
+  padding: 12px 22px; border-radius: 40px; z-index: 999;
+  opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── INLINE SEG ── */
+.seg { display: flex; gap: 2px; background: var(--surface2); border-radius: 10px; padding: 3px; margin-bottom: 28px; }
+.seg-btn {
+  flex: 1; padding: 8px; border: none; border-radius: 8px; background: none;
+  font-family: var(--sans); font-size: 13px; color: var(--sub); cursor: pointer; transition: all 0.2s;
+}
+.seg-btn.active { background: var(--surface); color: var(--text); font-weight: 500; }
+
+</style>
+</head>
+<body>
+
+<!-- ══ PAGE: HOME ══ -->
+<div id="page-home" class="page active">
+  <div class="page-title">hoje</div>
+
+  <!-- Level -->
+  <div class="level-wrap">
+    <div class="level-top">
+      <span class="level-name" id="lvlName">Estudante</span>
+      <span class="xp-inline" id="lvlXP">0 XP</span>
+    </div>
+    <div class="level-track"><div class="level-fill" id="lvlFill" style="width:0%"></div></div>
+    <div class="level-sub" id="lvlSub">0 XP para o próximo nível</div>
+  </div>
+
+  <!-- Big stat -->
+  <div class="section">
+    <div class="big-label">Estudo hoje</div>
+    <div>
+      <span class="big-num" id="homeStudyH">0</span><span class="big-unit">h</span>
+      <span class="big-num" id="homeStudyM" style="font-size:32px;color:var(--sub)">00</span><span class="big-unit" style="font-size:14px">m</span>
+    </div>
+    <div class="big-delta" id="homeWeekDelta">0h esta semana</div>
+  </div>
+
+  <!-- Mini grid -->
+  <div class="mini-grid" style="border-radius:var(--r); overflow:hidden; margin-bottom:48px">
+    <div class="mini-card">
+      <div class="mini-card-label">Streak</div>
+      <div><span class="mini-card-val" id="homeStreak">0</span><span class="mini-card-unit">dias</span></div>
+      <div class="mini-card-sub" id="homeStreakBest">Recorde: 0d</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-label">XP hoje</div>
+      <div><span class="mini-card-val" id="homeXPToday" style="color:var(--green)">0</span><span class="mini-card-unit">xp</span></div>
+      <div class="mini-card-sub" id="homeTotalXP">Total: 0 XP</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-label">Italiano</div>
+      <div><span class="mini-card-val" id="homeIT" style="color:var(--blue)">0</span><span class="mini-card-unit">h</span></div>
+      <div class="mini-card-sub">esta semana</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-label">Alemão</div>
+      <div><span class="mini-card-val" id="homeDE" style="color:var(--amber)">0</span><span class="mini-card-unit">h</span></div>
+      <div class="mini-card-sub">esta semana</div>
+    </div>
+  </div>
+
+  <!-- Study chart -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-label">Estudo — 7 dias</span>
+    </div>
+    <div class="chart-wrap tall"><canvas id="chartHome"></canvas></div>
+  </div>
+
+  <!-- Streak pills per habit -->
+  <div class="section">
+    <div class="section-header"><span class="section-label">Hábitos — última semana</span></div>
+    <div id="habitStreaks"></div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="section">
+    <div class="section-header"><span class="section-label">Atividade — 91 dias</span></div>
+    <div class="heatmap-wrap" id="heatmap"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: LOG ══ -->
+<div id="page-log" class="page">
+  <div class="page-title">registrar</div>
+
+  <div class="log-section">
+    <div class="field">
+      <label>Categoria</label>
+      <select id="fCat">
+        <option value="medicina">Medicina</option>
+        <option value="idiomas">Idiomas</option>
+        <option value="habitos">Hábitos</option>
+        <option value="credencial">Credencial</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Subcategoria</label>
+      <select id="fSub">
+        <option>Anatomia</option><option>Fisiologia</option>
+        <option>Farmacologia</option><option>Bioquímica</option>
+        <option>Italiano</option><option>Alemão</option>
+        <option>Sono</option><option>Exercício</option>
+        <option>ACLS</option><option>CRI</option><option>Outro</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Duração (minutos)</label>
+      <input type="number" id="fDur" placeholder="60" min="1" max="600">
+    </div>
+    <div class="field">
+      <label>Descrição</label>
+      <input type="text" id="fDesc" placeholder="ex: revisão de fisiologia renal">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div class="field">
+        <label>Qualidade</label>
+        <select id="fQual">
+          <option value="5">Excelente</option>
+          <option value="4">Boa</option>
+          <option value="3" selected>Ok</option>
+          <option value="2">Fraca</option>
+          <option value="1">Péssima</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Humor</label>
+        <select id="fMood">
+          <option value="motivated">Motivado</option>
+          <option value="neutral" selected>Neutro</option>
+          <option value="tired">Cansado</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-submit" onclick="addLog()">Registrar</button>
+  </div>
+
+  <div class="div"></div>
+  <div class="section-header"><span class="section-label">Histórico</span></div>
+  <div id="logList"></div>
+</div>
+
+<!-- ══ PAGE: STATS ══ -->
+<div id="page-stats" class="page">
+  <div class="page-title">estatísticas</div>
+
+  <div class="seg">
+    <button class="seg-btn active" onclick="setStatTab('geral',this)">Geral</button>
+    <button class="seg-btn" onclick="setStatTab('idiomas',this)">Idiomas</button>
+    <button class="seg-btn" onclick="setStatTab('metas',this)">Metas</button>
+  </div>
+
+  <!-- GERAL -->
+  <div id="stat-geral">
+    <div class="section">
+      <div class="chart-wrap tall"><canvas id="chartStats"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Por categoria</span></div>
+      <div id="statCatRows"></div>
+    </div>
+  </div>
+
+  <!-- IDIOMAS -->
+  <div id="stat-idiomas" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:40px">
+      <div>
+        <div class="big-label">Italiano</div>
+        <div><span class="big-num" id="itBig" style="font-size:40px;color:var(--blue)">0</span><span class="big-unit">h</span></div>
+        <div style="font-size:12px;color:var(--sub);margin-top:4px" id="itWeekSub">0h esta semana</div>
+      </div>
+      <div>
+        <div class="big-label">Alemão</div>
+        <div><span class="big-num" id="deBig" style="font-size:40px;color:var(--amber)">0</span><span class="big-unit">h</span></div>
+        <div style="font-size:12px;color:var(--sub);margin-top:4px" id="deWeekSub">0h esta semana</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Últimos 7 dias</span></div>
+      <div class="chart-wrap tall"><canvas id="chartLang"></canvas></div>
+    </div>
+  </div>
+
+  <!-- METAS -->
+  <div id="stat-metas" style="display:none">
+    <div class="section">
+      <div class="section-header"><span class="section-label">Semanais</span></div>
+      <div id="metasRows"></div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Fluência</span></div>
+      <div id="fluenciaRows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: GAMIFICATION ══ -->
+<div id="page-game" class="page">
+  <div class="page-title">conquistas</div>
+
+  <!-- Level big -->
+  <div class="section">
+    <div class="big-label">nível</div>
+    <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:16px">
+      <span class="big-num" id="gameLvlNum">1</span>
+      <span style="font-size:20px;color:var(--sub);padding-bottom:8px" id="gameLvlTitle">Estudante Iniciante</span>
+    </div>
+    <div class="level-track"><div class="level-fill" id="gameLvlBar" style="width:0%"></div></div>
+    <div class="level-sub" id="gameLvlSub">0 XP · 0 para o próximo</div>
+  </div>
+
+  <!-- XP por cat rows -->
+  <div class="section">
+    <div class="section-header"><span class="section-label">XP por categoria</span></div>
+    <div id="gameXPRows"></div>
+  </div>
+
+  <div class="div"></div>
+  <div class="section-header" style="margin-bottom:24px"><span class="section-label">Conquistas</span></div>
+  <div class="ach-list" id="achList"></div>
+</div>
+
+<!-- ══ PAGE: IDIOMAS ══ -->
+<div id="page-lang" class="page">
+  <div class="page-title">idiomas</div>
+  <div style="font-size:13px;color:var(--amber);margin-bottom:24px;font-weight:500">● Alemão — foco principal</div>
+
+  <!-- Lang selector -->
+  <div class="seg" id="langSeg">
+    <button class="seg-btn" onclick="setLangTab('it',this)">Italiano</button>
+    <button class="seg-btn active" onclick="setLangTab('de',this)">Alemão</button>
+  </div>
+
+  <!-- ── ITALIANO ── -->
+  <div id="lang-it" style="display:none">
+
+    <!-- Hero stat -->
+    <div style="margin-bottom:40px">
+      <div class="big-label">total acumulado</div>
+      <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:6px">
+        <span class="big-num" id="it-total-h" style="color:var(--blue)">0</span>
+        <span style="font-size:22px;color:var(--sub);padding-bottom:10px">h</span>
+        <span class="big-num" id="it-total-m" style="font-size:32px;color:var(--sub2)">00</span>
+        <span style="font-size:16px;color:var(--sub2);padding-bottom:10px">m</span>
+      </div>
+      <div style="font-size:13px;color:var(--sub)" id="it-today-delta">0m hoje</div>
+      <div style="font-size:12px;color:var(--sub2);margin-top:6px">Progresso via osmose — Bologna faz o trabalho.</div>
+    </div>
+
+    <!-- 4 mini cards -->
+    <div class="mini-grid" style="border-radius:var(--r);overflow:hidden;margin-bottom:40px">
+      <div class="mini-card">
+        <div class="mini-card-label">Esta semana</div>
+        <div><span class="mini-card-val" id="it-week" style="color:var(--blue)">0</span><span class="mini-card-unit">h</span></div>
+        <div class="mini-card-sub" id="it-week-delta">vs semana anterior</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-label">Streak</div>
+        <div><span class="mini-card-val" id="it-streak">0</span><span class="mini-card-unit">dias</span></div>
+        <div class="mini-card-sub" id="it-streak-best">Recorde: 0d</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-label">Média diária</div>
+        <div><span class="mini-card-val" id="it-avg">0</span><span class="mini-card-unit">m</span></div>
+        <div class="mini-card-sub">últimos 30 dias</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-label">Sessões</div>
+        <div><span class="mini-card-val" id="it-sessions">0</span></div>
+        <div class="mini-card-sub" id="it-sessions-sub">0 este mês</div>
+      </div>
+    </div>
+
+    <!-- Daily activity chart -->
+    <div class="section">
+      <div class="section-header"><span class="section-label">Atividade diária — 30 dias</span></div>
+      <div class="chart-wrap tall"><canvas id="chartItDaily"></canvas></div>
+    </div>
+
+    <!-- Fluency progress -->
+    <div class="section">
+      <div class="section-header"><span class="section-label">Meta de fluência</span></div>
+      <div style="margin-bottom:8px;font-size:22px;font-weight:300;color:var(--text)" id="it-fluency-level">B1 →</div>
+      <div style="font-size:13px;color:var(--sub);margin-bottom:20px" id="it-fluency-desc">Estimativa baseada em horas acumuladas</div>
+      <div class="prog">
+        <div class="prog-top">
+          <span class="prog-name" id="it-goal-label">Meta: 600h (B2)</span>
+          <span class="prog-val" id="it-goal-pct">0%</span>
+        </div>
+        <div class="prog-track" style="height:4px"><div class="prog-fill" id="it-goal-bar" style="width:0%;background:var(--blue)"></div></div>
+        <div style="font-size:12px;color:var(--sub);margin-top:10px" id="it-eta">— h restantes</div>
+      </div>
+    </div>
+
+    <!-- Dynamic goal -->
+    <div style="background:var(--surface);border-radius:14px;padding:22px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span class="section-label">meta dinâmica</span>
+        <button style="display:none">
+      </div>
+
+      <div id="it-dynamic-goal"></div>
+    </div>
+
+    <!-- ETA projection -->
+    <div style="background:var(--surface);border-radius:14px;padding:22px;margin-bottom:40px">
+      <div class="section-label" style="margin-bottom:16px">Projeção de chegada</div>
+      <div id="it-projections"></div>
+    </div>
+
+    <!-- Weekly breakdown chart -->
+    <div class="section">
+      <div class="section-header"><span class="section-label">Distribuição semanal</span></div>
+      <div class="chart-wrap"><canvas id="chartItWeekly"></canvas></div>
+    </div>
+
+    <!-- Recent sessions -->
+    <div class="section">
+      <div class="section-header"><span class="section-label">Sessões recentes</span></div>
+      <div id="it-log-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ── ALEMÃO ── -->
+  <div id="lang-de">
+
+    <div style="margin-bottom:40px">
+      <div class="big-label">total acumulado</div>
+      <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:6px">
+        <span class="big-num" id="de-total-h" style="color:var(--amber)">0</span>
+        <span style="font-size:22px;color:var(--sub);padding-bottom:10px">h</span>
+        <span class="big-num" id="de-total-m" style="font-size:32px;color:var(--sub2)">00</span>
+        <span style="font-size:16px;color:var(--sub2);padding-bottom:10px">m</span>
+      </div>
+      <div style="font-size:13px;color:var(--sub)" id="de-today-delta">0m hoje</div>
+    </div>
+
+    <div class="mini-grid" style="border-radius:var(--r);overflow:hidden;margin-bottom:40px">
+      <div class="mini-card">
+        <div class="mini-card-label">Esta semana</div>
+        <div><span class="mini-card-val" id="de-week" style="color:var(--amber)">0</span><span class="mini-card-unit">h</span></div>
+        <div class="mini-card-sub" id="de-week-delta">vs semana anterior</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-label">Streak</div>
+        <div><span class="mini-card-val" id="de-streak">0</span><span class="mini-card-unit">dias</span></div>
+        <div class="mini-card-sub" id="de-streak-best">Recorde: 0d</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-label">Média diária</div>
+        <div><span class="mini-card-val" id="de-avg">0</span><span class="mini-card-unit">m</span></div>
+        <div class="mini-card-sub">últimos 30 dias</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-label">Sessões</div>
+        <div><span class="mini-card-val" id="de-sessions">0</span></div>
+        <div class="mini-card-sub" id="de-sessions-sub">0 este mês</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-label">Atividade diária — 30 dias</span></div>
+      <div class="chart-wrap tall"><canvas id="chartDeDaily"></canvas></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-label">Meta de fluência</span></div>
+      <div style="margin-bottom:8px;font-size:22px;font-weight:300;color:var(--text)" id="de-fluency-level">A1 →</div>
+      <div style="font-size:13px;color:var(--sub);margin-bottom:20px" id="de-fluency-desc">Estimativa baseada em horas acumuladas</div>
+      <div class="prog">
+        <div class="prog-top">
+          <span class="prog-name" id="de-goal-label">Meta: 650h (B2)</span>
+          <span class="prog-val" id="de-goal-pct">0%</span>
+        </div>
+        <div class="prog-track" style="height:4px"><div class="prog-fill" id="de-goal-bar" style="width:0%;background:var(--amber)"></div></div>
+        <div style="font-size:12px;color:var(--sub);margin-top:10px" id="de-eta">— h restantes</div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border-radius:14px;padding:22px;margin-bottom:40px">
+      <div class="section-label" style="margin-bottom:16px">Projeção de chegada</div>
+      <div id="de-projections"></div>
+    </div>
+
+    <!-- Dynamic goal DE -->
+    <div style="background:var(--surface);border-radius:14px;padding:22px;margin-bottom:40px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span class="section-label">meta dinâmica</span>
+        <button style="display:none">
+      </div>
+
+      <div id="de-dynamic-goal"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-label">Distribuição semanal</span></div>
+      <div class="chart-wrap"><canvas id="chartDeWeekly"></canvas></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-label">Sessões recentes</span></div>
+      <div id="de-log-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bnav-btn active" onclick="switchPage('home',this)">
+    <span class="icon">◎</span><span>Home</span><span class="dot"></span>
+  </button>
+  <button class="bnav-btn" onclick="switchPage('log',this)">
+    <span class="icon">＋</span><span>Log</span><span class="dot"></span>
+  </button>
+  <button class="bnav-btn" onclick="switchPage('lang',this)">
+    <span class="icon">語</span><span>Idiomas</span><span class="dot"></span>
+  </button>
+  <button class="bnav-btn" onclick="switchPage('stats',this)">
+    <span class="icon">╌</span><span>Stats</span><span class="dot"></span>
+  </button>
+  <button class="bnav-btn" onclick="switchPage('game',this)">
+    <span class="icon">◈</span><span>Level</span><span class="dot"></span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+const XP_RATE = { medicina:15, idiomas:12, habitos:8, credencial:20 };
+const LEVELS = [
+  {min:0,    title:'Estudante Iniciante'},
+  {min:500,  title:'Acadêmico'},
+  {min:1200, title:'Pesquisador Júnior'},
+  {min:2500, title:'Residente em Formação'},
+  {min:5000, title:'Médico em Ascensão'},
+  {min:9000, title:'Especialista'},
+];
+
+let S = JSON.parse(localStorage.getItem('atlas2') || 'null') || {
+  logs:[], totalXP:0, streak:0, bestStreak:0, lastDate:null
+};
+// Baseline offset: horas pré-existentes antes do tracker (nível declarado)
+// IT: B1 real = 250h de threshold + ~30h de margem no nível = 280h baseline
+// DE: A1 real, mas com alguma base = 10h baseline
+const BASELINE = { Italiano: 280*60, Alemão: 10*60 };
+function save() { localStorage.setItem('atlas2', JSON.stringify(S)); }
+
+function today() { return new Date().toISOString().slice(0,10); }
+function fmtH(m) { return m < 60 ? m+'m' : (m/60).toFixed(1).replace('.0','')+'h'; }
+function fmtHN(m) { return +(m/60).toFixed(2); }
+function last7() {
+  return Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().slice(0,10); });
+}
+function minsBy(cat, days=9999) {
+  const c = new Date(); c.setDate(c.getDate()-days);
+  return S.logs.filter(l=>l.cat===cat&&new Date(l.date)>=c).reduce((a,l)=>a+l.dur,0);
+}
+function minsBySub(sub, days=9999) {
+  const c = new Date(); c.setDate(c.getDate()-days);
+  return S.logs.filter(l=>l.sub===sub&&new Date(l.date)>=c).reduce((a,l)=>a+l.dur,0);
+}
+function calcLevel(xp) {
+  let i=0;
+  for(let j=1;j<LEVELS.length;j++) { if(xp>=LEVELS[j].min) i=j; else break; }
+  const next = LEVELS[i+1]?.min ?? LEVELS[i].min*2;
+  const pct = Math.min(100,Math.round((xp-LEVELS[i].min)/(next-LEVELS[i].min)*100));
+  return { lvl:i+1, title:LEVELS[i].title, pct, toNext:next-xp };
+}
+function updateStreak() {
+  const t=today();
+  if(!S.lastDate) S.streak=1;
+  else if(S.lastDate===t) {}
+  else { const diff=Math.round((new Date(t)-new Date(S.lastDate))/86400000); S.streak = diff===1 ? S.streak+1 : 1; }
+  S.lastDate=t;
+  if(S.streak>S.bestStreak) S.bestStreak=S.streak;
+}
+
+// ── NAVIGATION ──
+function switchPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  renderAll();
+}
+
+function setStatTab(tab, btn) {
+  ['geral','idiomas','metas'].forEach(t=>document.getElementById('stat-'+t).style.display='none');
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('stat-'+tab).style.display='block';
+  btn.classList.add('active');
+  renderAll();
+}
+
+// ── ADD LOG ──
+function addLog() {
+  const cat=document.getElementById('fCat').value;
+  const sub=document.getElementById('fSub').value;
+  const dur=parseInt(document.getElementById('fDur').value)||0;
+  const desc=document.getElementById('fDesc').value.trim()||sub;
+  const qual=parseInt(document.getElementById('fQual').value);
+  const mood=document.getElementById('fMood').value;
+  if(!dur){showToast('Informe a duração');return;}
+  const xp=Math.round((dur/30)*XP_RATE[cat]*(qual/3));
+  S.logs.unshift({cat,sub,dur,desc,qual,mood,xp,date:today(),ts:Date.now()});
+  S.totalXP+=xp;
+  updateStreak();
+  save();
+  document.getElementById('fDur').value='';
+  document.getElementById('fDesc').value='';
+  renderAll();
+  showToast(`+${xp} XP`);
+}
+
+// ── TOAST ──
+let _tt;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ── CHART INSTANCES ──
+const CH = {};
+function mk(id,cfg) {
+  if(CH[id]) CH[id].destroy();
+  const c=document.getElementById(id); if(!c) return;
+  Chart.defaults.color='#444';
+  Chart.defaults.font.family="'DM Mono', monospace";
+  Chart.defaults.font.size=11;
+  CH[id]=new Chart(c,cfg);
+}
+
+const GR='#3ddc84', BL='#5b9cf6', AM='#f5a623', RD='#ff5f5f', MU='#2a2a2a';
+
+// ── RENDER FUNCTIONS ──
+function renderHome() {
+  const todayLogs=S.logs.filter(l=>l.date===today());
+  const studyMins=todayLogs.reduce((a,l)=>a+l.dur,0);
+  const weekMins=minsBy('medicina',7)+minsBy('idiomas',7);
+  const todayXP=todayLogs.reduce((a,l)=>a+l.xp,0);
+  const lv=calcLevel(S.totalXP);
+
+  set('homeStudyH', Math.floor(studyMins/60));
+  set('homeStudyM', String(studyMins%60).padStart(2,'0'));
+  set('homeWeekDelta', fmtH(weekMins)+' esta semana');
+  set('homeStreak', S.streak);
+  set('homeStreakBest', 'Recorde: '+S.bestStreak+'d');
+  set('homeXPToday', todayXP);
+  set('homeTotalXP', 'Total: '+S.totalXP+' XP');
+  set('homeIT', fmtH(minsBySub('Italiano',7)));
+  set('homeDE', fmtH(minsBySub('Alemão',7)));
+  set('lvlName', lv.title);
+  set('lvlXP', S.totalXP+' XP');
+  set('lvlSub', lv.toNext+' XP para o próximo nível');
+  sty('lvlFill','width', lv.pct+'%');
+
+  // Home chart — stacked bar 7d
+  const days=last7();
+  const cats=['medicina','idiomas','habitos','credencial'];
+  const colors=[BL+'cc',GR+'cc',AM+'cc',RD+'cc'];
+  const labels=['Medicina','Idiomas','Hábitos','Credencial'];
+  mk('chartHome',{
+    type:'bar',
+    data:{
+      labels:days.map(d=>d.slice(5)),
+      datasets:cats.map((c,i)=>({
+        label:labels[i],
+        data:days.map(d=>fmtHN(S.logs.filter(l=>l.cat===c&&l.date===d).reduce((a,l)=>a+l.dur,0))),
+        backgroundColor:colors[i], borderWidth:0, borderRadius:2,
+      }))
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{color:'#444'}},
+        y:{stacked:true,grid:{color:'#1a1a1a'},ticks:{color:'#444'},beginAtZero:true}
+      }
+    }
+  });
+
+  // Habit streak pills
+  const habitsEl=document.getElementById('habitStreaks');
+  if(habitsEl){
+    const habits=[
+      {name:'Medicina', key:'medicina', cat:true, color:BL},
+      {name:'Italiano', sub:'Italiano', color:GR},
+      {name:'Alemão',   sub:'Alemão',   color:AM},
+      {name:'Exercício',sub:'Exercício',color:RD},
+    ];
+    habitsEl.innerHTML=habits.map(h=>{
+      const pills=days.map(d=>{
+        const logged=h.cat
+          ? S.logs.some(l=>l.cat===h.key&&l.date===d)
+          : S.logs.some(l=>l.sub===h.sub&&l.date===d);
+        return `<div class="streak-pill ${logged?'on':''}" style="${logged?'background:'+h.color:''}" title="${d}"></div>`;
+      }).join('');
+      return `<div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--sub);margin-bottom:8px">
+          <span>${h.name}</span>
+          <span style="font-family:var(--mono);font-size:11px">${days.filter(d=> h.cat ? S.logs.some(l=>l.cat===h.key&&l.date===d) : S.logs.some(l=>l.sub===h.sub&&l.date===d)).length}/7</span>
+        </div>
+        <div class="streak-pills">${pills}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Heatmap
+  const hmEl=document.getElementById('heatmap');
+  if(hmEl){
+    const actMap={};
+    S.logs.forEach(l=>{actMap[l.date]=(actMap[l.date]||0)+l.dur;});
+    const max=Math.max(...Object.values(actMap),1);
+    let html='';
+    for(let w=0;w<13;w++){
+      html+='<div class="hm-col">';
+      for(let d=0;d<7;d++){
+        const dt=new Date(); dt.setDate(dt.getDate()-(90-(w*7+d)));
+        const k=dt.toISOString().slice(0,10);
+        const m=actMap[k]||0;
+        const l=!m?'':m/max<.25?'l1':m/max<.5?'l2':m/max<.75?'l3':'l4';
+        html+=`<div class="hm-cell ${l}" title="${k}: ${fmtH(m)}"></div>`;
+      }
+      html+='</div>';
+    }
+    hmEl.innerHTML=html;
+  }
+}
+
+function renderLog() {
+  const el=document.getElementById('logList'); if(!el) return;
+  if(!S.logs.length){ el.innerHTML='<div style="font-size:14px;color:var(--sub);padding:20px 0">Nenhuma entrada ainda.</div>'; return; }
+  const colors={medicina:BL,idiomas:GR,habitos:AM,credencial:RD};
+  el.innerHTML=S.logs.slice(0,25).map(l=>`
+    <div class="log-entry">
+      <div class="log-dot" style="background:${colors[l.cat]}"></div>
+      <div class="log-entry-left">
+        <div class="log-entry-name">${l.desc}</div>
+        <div class="log-entry-sub">${l.sub} · ${l.date}</div>
+      </div>
+      <div class="log-entry-right">
+        <div class="log-entry-dur">${fmtH(l.dur)}</div>
+        <div class="log-entry-xp">+${l.xp} xp</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderStats() {
+  // Geral chart
+  const days=last7();
+  mk('chartStats',{
+    type:'line',
+    data:{
+      labels:days.map(d=>d.slice(5)),
+      datasets:[
+        {label:'Medicina',data:days.map(d=>fmtHN(S.logs.filter(l=>l.cat==='medicina'&&l.date===d).reduce((a,l)=>a+l.dur,0))),borderColor:BL,backgroundColor:BL+'22',borderWidth:1.5,pointRadius:3,tension:0.4,fill:true},
+        {label:'Idiomas', data:days.map(d=>fmtHN(S.logs.filter(l=>l.cat==='idiomas' &&l.date===d).reduce((a,l)=>a+l.dur,0))),borderColor:GR,backgroundColor:GR+'22',borderWidth:1.5,pointRadius:3,tension:0.4,fill:true},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#555',boxWidth:10,padding:16}}},scales:{x:{grid:{display:false},ticks:{color:'#444'}},y:{grid:{color:'#1a1a1a'},ticks:{color:'#444'},beginAtZero:true}}}
+  });
+
+  // Cat rows
+  const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR},{k:'habitos',n:'Hábitos',c:AM},{k:'credencial',n:'Credencial',c:RD}];
+  const el=document.getElementById('statCatRows'); if(!el) return;
+  el.innerHTML=cats.map(c=>`
+    <div class="row-stat">
+      <div class="row-stat-left">
+        <div class="row-stat-name">${c.n}</div>
+        <div class="row-stat-sub">${S.logs.filter(l=>l.cat===c.k).length} sessões · ${fmtH(minsBy(c.k,7))} esta semana</div>
+      </div>
+      <div class="row-stat-val" style="color:${c.c}">${fmtH(minsBy(c.k))}</div>
+    </div>`).join('');
+
+  // Idiomas
+  const itT=minsBySub('Italiano'); const deT=minsBySub('Alemão');
+  set('itBig',fmtH(itT).replace('h','').replace('m','')); set('itWeekSub',fmtH(minsBySub('Italiano',7))+' esta semana');
+  set('deBig',fmtH(deT).replace('h','').replace('m','')); set('deWeekSub',fmtH(minsBySub('Alemão',7))+' esta semana');
+  mk('chartLang',{
+    type:'bar',
+    data:{labels:days.map(d=>d.slice(5)),datasets:[
+      {label:'Italiano',data:days.map(d=>fmtHN(S.logs.filter(l=>l.sub==='Italiano'&&l.date===d).reduce((a,l)=>a+l.dur,0))),backgroundColor:BL+'99',borderRadius:3},
+      {label:'Alemão',  data:days.map(d=>fmtHN(S.logs.filter(l=>l.sub==='Alemão'&&l.date===d).reduce((a,l)=>a+l.dur,0))),backgroundColor:AM+'99',borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#555',boxWidth:10,padding:16}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#444'}},y:{stacked:true,grid:{color:'#1a1a1a'},ticks:{color:'#444'},beginAtZero:true}}}
+  });
+
+  // Metas semanais
+  const goals=[
+    {n:'Medicina',  target:600, done:minsBy('medicina',7), c:BL},
+    {n:'Idiomas',   target:210, done:minsBy('idiomas',7),  c:GR},
+    {n:'Exercício', target:150, done:minsBySub('Exercício',7), c:AM},
+  ];
+  const mel=document.getElementById('metasRows'); if(mel){
+    mel.innerHTML=goals.map(g=>{
+      const pct=Math.min(100,Math.round(g.done/g.target*100));
+      return `<div class="prog">
+        <div class="prog-top"><span class="prog-name">${g.n}</span><span class="prog-val">${fmtH(g.done)} / ${fmtH(g.target)}</span></div>
+        <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${g.c}"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  const fluencia=[
+    {n:'Italiano B2→C1',sub:'Italiano',target:3000,c:BL},
+    {n:'Alemão A2→B1',  sub:'Alemão',  target:1500,c:AM},
+  ];
+  const fel=document.getElementById('fluenciaRows'); if(fel){
+    fel.innerHTML=fluencia.map(g=>{
+      const done=minsBySub(g.sub); const pct=Math.min(100,Math.round(done/g.target*100));
+      return `<div class="prog">
+        <div class="prog-top"><span class="prog-name">${g.n}</span><span class="prog-val">${fmtH(done)} / ${fmtH(g.target)}</span></div>
+        <div class="prog-track" style="height:3px"><div class="prog-fill" style="width:${pct}%;background:${g.c}"></div></div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderGame() {
+  const lv=calcLevel(S.totalXP);
+  set('gameLvlNum', lv.lvl);
+  set('gameLvlTitle', lv.title);
+  set('gameLvlSub', S.totalXP+' XP · '+lv.toNext+' para o próximo');
+  sty('gameLvlBar','width',lv.pct+'%');
+
+  // XP rows
+  const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR},{k:'habitos',n:'Hábitos',c:AM},{k:'credencial',n:'Credencial',c:RD}];
+  const el=document.getElementById('gameXPRows'); if(el){
+    const maxXP=Math.max(...cats.map(c=>S.logs.filter(l=>l.cat===c.k).reduce((a,l)=>a+l.xp,0)),1);
+    el.innerHTML=cats.map(c=>{
+      const xp=S.logs.filter(l=>l.cat===c.k).reduce((a,l)=>a+l.xp,0);
+      const pct=Math.round(xp/maxXP*100);
+      return `<div class="prog">
+        <div class="prog-top"><span class="prog-name">${c.n}</span><span class="prog-val" style="color:${c.c}">${xp} xp</span></div>
+        <div class="prog-track" style="height:3px"><div class="prog-fill" style="width:${pct}%;background:${c.c}"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Achievements
+  const achs=[
+    {icon:'🧬',name:'Primeira Sessão',desc:'Registre sua primeira sessão',u:S.logs.length>=1},
+    {icon:'📚',name:'10 Sessões',desc:'10 sessões registradas',u:S.logs.length>=10},
+    {icon:'🔬',name:'10h Medicina',desc:'100 horas de estudo',u:minsBy('medicina')>=600},
+    {icon:'🔥',name:'Streak 3 dias',desc:'3 dias consecutivos',u:S.streak>=3||S.bestStreak>=3},
+    {icon:'🇮🇹',name:'Italiano 5h',desc:'5 horas de italiano',u:minsBySub('Italiano')>=300},
+    {icon:'🇩🇪',name:'Alemão 5h',desc:'5 horas de alemão',u:minsBySub('Alemão')>=300},
+    {icon:'💊',name:'Farma Deep Dive',desc:'2h de farmacologia',u:minsBySub('Farmacologia')>=120},
+    {icon:'🏃',name:'Corpo Saudável',desc:'5h de exercício',u:minsBySub('Exercício')>=300},
+    {icon:'⭐',name:'500 XP',desc:'500 XP acumulados',u:S.totalXP>=500},
+    {icon:'🏆',name:'2000 XP',desc:'2000 XP acumulados',u:S.totalXP>=2000},
+  ];
+  const al=document.getElementById('achList'); if(al){
+    al.innerHTML=achs.map(a=>`
+      <div class="ach-row ${a.u?'unlocked':''}">
+        <div class="ach-icon-wrap">${a.icon}</div>
+        <div class="ach-info">
+          <div class="ach-name">${a.name}</div>
+          <div class="ach-desc">${a.desc}</div>
+        </div>
+        <span class="ach-badge">${a.u?'✓ Desbloqueado':'Bloqueado'}</span>
+      </div>`).join('');
+  }
+}
+
+// ── UTILS ──
+function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function sty(id,prop,v){const e=document.getElementById(id);if(e)e.style[prop]=v;}
+
+
+function renderDynamicGoal(lang, totalMins, color) {
+  const el = document.getElementById(lang+'-dynamic-goal');
+  if (!el) return;
+
+  const sub = lang==='it' ? 'Italiano' : 'Alemão';
+
+  // avg mins/day over last 30 days (logged only)
+  const c30 = new Date(); c30.setDate(c30.getDate()-30);
+  const avg30 = S.logs.filter(l=>l.sub===sub&&new Date(l.date)>=c30).reduce((a,l)=>a+l.dur,0)/30;
+
+  // milestone thresholds in minutes
+  const thresholds = lang==='it'
+    ? { b1half: 200*60, b2: 400*60, c1: 600*60 }
+    : { b1half: 150*60, b2: 400*60, c1: 650*60 };
+
+  const milestoneLabels = lang==='it'
+    ? { b1half:'B1 50% — funcional básico', b2:'B2 — Famulaturen', c1:'C1 — fluência real' }
+    : { b1half:'B1 — Famulaturen', b2:'B2 — threshold mínimo Suíça', c1:'C1 — fluência funcional' };
+
+  const milestoneKeys = ['b1half','b2','c1'];
+  const dateKeys = milestoneKeys.map(k => lang+'Goal_'+k);
+  const colors_m = ['#9b8cff','#5b9cf6','#3ddc84']; // purple, blue, green
+
+  function statusFor(goalMins, goalDate) {
+    const remaining = Math.max(0, goalMins - totalMins);
+    const done = remaining === 0;
+    if (done) return { done:true, remaining:0, ratio:999, neededPerDay:0, statusColor:'#3ddc84', statusLabel:'Concluído', statusIcon:'✓', daysLeft:0, projDate:'—', pctRatio:100 };
+    if (!goalDate) return null;
+    const today_ = new Date(); today_.setHours(0,0,0,0);
+    const target = new Date(goalDate); target.setHours(0,0,0,0);
+    const daysLeft = Math.round((target - today_) / 86400000);
+    if (daysLeft <= 0) return { expired:true, remaining };
+    const neededPerDay = remaining / daysLeft;
+    const ratio = avg30 > 0 ? avg30 / neededPerDay : 0;
+    const ahead = ratio >= 1.1, onTrack = ratio >= 0.9;
+    const statusColor = ahead ? '#3ddc84' : onTrack ? color : '#ff5f5f';
+    const statusLabel = ahead ? 'Adiantado' : onTrack ? 'No ritmo' : 'Atrasado';
+    const statusIcon  = ahead ? '↑' : onTrack ? '→' : '↓';
+    const pctRatio = Math.min(200, Math.round(ratio * 100));
+    const projDate = avg30 > 0 ? (() => { const d=new Date(); d.setDate(d.getDate()+Math.round(remaining/avg30)); return d.toLocaleDateString('pt-BR',{month:'short',year:'numeric'}); })() : '—';
+    const dateStr = target.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+    return { remaining, ratio, neededPerDay, statusColor, statusLabel, statusIcon, daysLeft, projDate, pctRatio, dateStr, done:false, expired:false };
+  }
+
+  const rows = milestoneKeys.map((k, i) => {
+    const goalMins = thresholds[k];
+    const goalDate = S[lang+'Goal_'+k];
+    const label    = milestoneLabels[k];
+    const mc       = colors_m[i];
+    const pct      = Math.min(100, Math.round(totalMins / goalMins * 100));
+    const st       = statusFor(goalMins, goalDate);
+
+    let statusHTML = '';
+    if (st === null) {
+      statusHTML = `<span style="font-size:11px;color:var(--sub2);cursor:pointer" onclick="openGoalDate('${lang}','${k}')">Definir prazo →</span>`;
+    } else if (st.expired) {
+      statusHTML = `<span style="font-size:11px;color:var(--red);cursor:pointer" onclick="openGoalDate('${lang}','${k}')">Expirado — redefinir</span>`;
+    } else if (st.done) {
+      statusHTML = `<span style="font-size:11px;color:#3ddc84">✓ Concluído</span>`;
+    } else {
+      statusHTML = `
+        <span style="font-size:11px;color:${st.statusColor}">${st.statusIcon} ${st.statusLabel}</span>
+        <span style="font-size:11px;color:var(--sub);margin-left:8px">${Math.round(st.neededPerDay)}m/dia · ${st.daysLeft}d</span>`;
+    }
+
+    const projHTML = st && !st.done && !st.expired && st !== null
+      ? `<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--sub)">
+           <span>Prazo: <span style="color:var(--text)">${st.dateStr||'—'}</span></span>
+           <span>Projeção: <span style="color:${st.statusColor||'var(--sub)'}">${st.projDate}</span></span>
+         </div>`
+      : '';
+
+    return `
+      <div style="padding:16px 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div>
+            <span style="font-size:13px;color:var(--text);font-weight:500">${label}</span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--sub);margin-left:8px">${fmtH(totalMins)} / ${fmtH(goalMins)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">${statusHTML}</div>
+        </div>
+        <div style="height:2px;background:var(--line);border-radius:2px">
+          <div style="height:100%;width:${pct}%;background:${mc};border-radius:2px;transition:width 0.8s"></div>
+        </div>
+        ${projHTML}
+      </div>`;
+  }).join('');
+
+  // date pickers (hidden, shown on demand)
+  const pickers = milestoneKeys.map((k,i) => `
+    <div id="${lang}-datepick-${k}" style="display:none;padding:14px 0;border-bottom:1px solid var(--line)">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:8px">${milestoneLabels[k]}</div>
+      <div style="display:flex;gap:12px;align-items:flex-end">
+        <input type="date" id="${lang}-date-${k}" style="flex:1;background:none;border:none;border-bottom:1px solid var(--line);color:var(--text);font-family:var(--sans);font-size:15px;font-weight:300;padding:0 0 8px;outline:none">
+        <button onclick="saveGoalMilestone('${lang}','${k}')" style="font-size:12px;color:var(--bg);background:${colors_m[i]};border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-family:var(--sans);font-weight:500;white-space:nowrap">Salvar</button>
+        <button onclick="closeGoalDate('${lang}','${k}')" style="font-size:12px;color:var(--sub);background:none;border:none;cursor:pointer">✕</button>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--sub)">Metas de progresso</span>
+      <span style="font-size:11px;color:var(--sub)">ritmo: <span style="font-family:var(--mono);color:var(--text)">${Math.round(avg30)}m/dia</span></span>
+    </div>
+    ${pickers}
+    ${rows}
+  `;
+}
+
+function openGoalDate(lang, key) {
+  document.querySelectorAll(`[id^="${lang}-datepick-"]`).forEach(el=>el.style.display='none');
+  document.getElementById(lang+'-datepick-'+key).style.display='block';
+}
+function closeGoalDate(lang, key) {
+  document.getElementById(lang+'-datepick-'+key).style.display='none';
+}
+function saveGoalMilestone(lang, key) {
+  const val = document.getElementById(lang+'-date-'+key).value;
+  if (!val) return;
+  S[lang+'Goal_'+key] = val;
+  save();
+  closeGoalDate(lang, key);
+  renderLang();
+}
+
+
+// ── LANG TAB ──
+function setLangTab(tab, btn) {
+  document.getElementById('lang-it').style.display = tab==='it' ? 'block' : 'none';
+  document.getElementById('lang-de').style.display = tab==='de' ? 'block' : 'none';
+  document.querySelectorAll('#langSeg .seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLang();
+}
+
+// ── RENDER LANG ──
+function renderLang() {
+  // ── helpers ──
+  function lastNDays(n) {
+    return Array.from({length:n},(_,i)=>{
+      const d=new Date(); d.setDate(d.getDate()-(n-1-i)); return d.toISOString().slice(0,10);
+    });
+  }
+  function subLogs(sub) { return S.logs.filter(l=>l.sub===sub); }
+  function subMins(sub, days=99999) {
+    const c=new Date(); c.setDate(c.getDate()-days);
+    return S.logs.filter(l=>l.sub===sub&&new Date(l.date)>=c).reduce((a,l)=>a+l.dur,0);
+  }
+  function langStreak(sub) {
+    let streak=0, best=0, cur=0;
+    const days=lastNDays(365);
+    for(let i=days.length-1;i>=0;i--){
+      if(S.logs.some(l=>l.sub===sub&&l.date===days[i])) cur++;
+      else { if(i===days.length-1) {}; if(cur>0) { if(streak===0) streak=cur; if(cur>best) best=cur; cur=0; } }
+    }
+    if(cur>0){ if(streak===0) streak=cur; if(cur>best) best=cur; }
+    return {streak, best};
+  }
+  // ETA levels for Italian: A1=120h A2=250h B1=400h B2=600h C1=1000h C2=2000h
+  // Alemão: A1=80h A2=200h B1=400h B2=650h
+  function currentLevel(mins, milestones) {
+    const h=mins/60;
+    let lvl=milestones[0];
+    for(const m of milestones) { if(h>=m.hours) lvl=m; else break; }
+    return lvl;
+  }
+  function projections(mins, targetMins, sub) {
+    const remaining=Math.max(0,targetMins-mins);
+    const avg30=subMins(sub,30)/30; // mins/day avg
+    if(avg30<1) return null;
+    const daysNeeded=remaining/avg30;
+    const dt=new Date(); dt.setDate(dt.getDate()+Math.round(daysNeeded));
+    return { daysNeeded:Math.round(daysNeeded), date:dt.toLocaleDateString('pt-BR',{month:'short',year:'numeric'}), avgPerDay:Math.round(avg30) };
+  }
+
+  function renderOneLang(sub, prefix, color, milestones, goalH, goalLabel, effectiveMins) {
+    const logged=subMins(sub);  // apenas o que foi registrado no app
+    const total=effectiveMins ?? logged; // baseline + logged para cálculo de nível
+    const totalH=Math.floor(logged/60), totalM=logged%60; // hero mostra só o registrado
+    const today_=subMins(sub,1) - subMins(sub,0); // today only
+    // today's mins
+    const todayMins=S.logs.filter(l=>l.sub===sub&&l.date===today()).reduce((a,l)=>a+l.dur,0);
+    const week=subMins(sub,7);
+    const prevWeek=subMins(sub,14)-subMins(sub,7);
+    const avg30=Math.round(subMins(sub,30)/30);
+    const sessTotal=subLogs(sub).length;
+    const sessMo=S.logs.filter(l=>{const d=new Date(l.date);const now=new Date();return l.sub===sub&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length;
+    const {streak,best}=langStreak(sub);
+
+    set(prefix+'-total-h', totalH);
+    set(prefix+'-total-m', String(totalM).padStart(2,'0'));
+    set(prefix+'-today-delta', todayMins>0 ? '+'+todayMins+'m hoje' : 'nenhuma atividade hoje');
+    set(prefix+'-week', (week/60).toFixed(1).replace('.0',''));
+    const weekDiff=week-prevWeek;
+    const el=document.getElementById(prefix+'-week-delta');
+    if(el) { el.textContent=(weekDiff>=0?'↑ +':' ↓ ')+fmtH(Math.abs(weekDiff))+' vs semana anterior'; el.style.color=weekDiff>=0?'#3ddc84':'#ff5f5f'; }
+    set(prefix+'-streak', streak);
+    set(prefix+'-streak-best','Recorde: '+best+'d');
+    set(prefix+'-avg', avg30);
+    set(prefix+'-sessions', sessTotal);
+    set(prefix+'-sessions-sub', sessMo+' este mês');
+
+    // Fluency level
+    const lvl=currentLevel(total, milestones);
+    const nextLvl=milestones[milestones.indexOf(lvl)+1];
+    set(prefix+'-fluency-level', lvl.label+(nextLvl?' → '+nextLvl.label:''));
+    set(prefix+'-fluency-desc', lvl.desc + (BASELINE[sub]>0 ? ' · Calibrado ao seu nível declarado.' : ''));
+
+    // Goal bar
+    const goalMins=goalH*60;
+    const pct=Math.min(100,Math.round(total/goalMins*100));
+    set(prefix+'-goal-label', goalLabel);
+    set(prefix+'-goal-pct', pct+'%');
+    sty(prefix+'-goal-bar','width',pct+'%');
+    const rem=Math.max(0,goalMins-total);
+    set(prefix+'-eta', rem>0 ? fmtH(rem)+' restantes ('+Math.round(rem/60*10)/10+'h)' : '✓ Meta atingida!');
+
+    // Projections
+    const proj=projections(total, goalMins, sub);
+    const pEl=document.getElementById(prefix+'-projections');
+    if(pEl){
+      if(!proj || avg30<1){
+        pEl.innerHTML=`<div style="font-size:14px;color:var(--sub)">Sem dados suficientes para projetar. Registre mais sessões.</div>`;
+      } else {
+        const scenarios=[
+          {label:'Ritmo atual', min:proj.avgPerDay, days:proj.daysNeeded, date:proj.date},
+          {label:'30min/dia', min:30, days:Math.round(rem/(30)), date:(()=>{const d=new Date();d.setDate(d.getDate()+Math.round(rem/30));return d.toLocaleDateString('pt-BR',{month:'short',year:'numeric'});})()},
+          {label:'1h/dia',    min:60, days:Math.round(rem/60),  date:(()=>{const d=new Date();d.setDate(d.getDate()+Math.round(rem/60));return d.toLocaleDateString('pt-BR',{month:'short',year:'numeric'});})()},
+        ];
+        pEl.innerHTML=scenarios.map((s,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:${i<2?'1px solid var(--line)':'none'}">
+            <div>
+              <div style="font-size:14px;color:var(--text);font-weight:400">${s.label}</div>
+              <div style="font-size:12px;color:var(--sub);margin-top:2px">${s.min}min/dia · ${s.days>0?s.days+'d':'já atingido'}</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:13px;color:${color}">${s.days>0?s.date:'✓'}</div>
+          </div>`).join('');
+      }
+    }
+
+    // Daily 30d chart
+    const days30=lastNDays(30);
+    const dailyData=days30.map(d=>S.logs.filter(l=>l.sub===sub&&l.date===d).reduce((a,l)=>a+l.dur,0)/60);
+    const MA7=days30.map((_,i)=>{
+      const slice=dailyData.slice(Math.max(0,i-6),i+1);
+      return +(slice.reduce((a,v)=>a+v,0)/slice.length).toFixed(2);
+    });
+    mk('chart'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'Daily',{
+      type:'bar',
+      data:{
+        labels:days30.map(d=>d.slice(8)),
+        datasets:[
+          {type:'bar', label:'Diário', data:dailyData, backgroundColor:color+'44', borderWidth:0, borderRadius:2, order:2},
+          {type:'line',label:'Média 7d',data:MA7, borderColor:color, borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, order:1},
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#444',boxWidth:8,padding:14}}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:'#333',maxTicksLimit:10}},
+          y:{grid:{color:'#1a1a1a'},ticks:{color:'#444'},beginAtZero:true,title:{display:true,text:'horas',color:'#333'}}
+        }
+      }
+    });
+
+    // Weekly totals (last 8 weeks)
+    const weeks=Array.from({length:8},(_,i)=>{
+      const end=new Date(); end.setDate(end.getDate()-i*7);
+      const start=new Date(end); start.setDate(start.getDate()-6);
+      const label='W'+(8-i);
+      const mins=S.logs.filter(l=>{const d=new Date(l.date);return l.sub===sub&&d>=start&&d<=end;}).reduce((a,l)=>a+l.dur,0);
+      return {label,mins};
+    }).reverse();
+    mk('chart'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'Weekly',{
+      type:'bar',
+      data:{labels:weeks.map(w=>w.label),datasets:[{data:weeks.map(w=>+(w.mins/60).toFixed(2)),backgroundColor:color+'88',borderWidth:0,borderRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#444'}},y:{grid:{color:'#1a1a1a'},ticks:{color:'#444'},beginAtZero:true}}}
+    });
+
+    // Recent sessions
+    const logEl=document.getElementById(prefix+'-log-list');
+    if(logEl){
+      const recent=subLogs(sub).slice(0,8);
+      if(!recent.length){logEl.innerHTML='<div style="font-size:14px;color:var(--sub);padding:16px 0">Nenhuma sessão ainda.</div>';return;}
+      logEl.innerHTML=recent.map(l=>`
+        <div class="log-entry">
+          <div class="log-dot" style="background:${color}"></div>
+          <div class="log-entry-left">
+            <div class="log-entry-name">${l.desc}</div>
+            <div class="log-entry-sub">${l.date} · qual. ${l.qual}/5 · ${l.mood}</div>
+          </div>
+          <div class="log-entry-right">
+            <div class="log-entry-dur">${fmtH(l.dur)}</div>
+            <div class="log-entry-xp">+${l.xp} xp</div>
+          </div>
+        </div>`).join('');
+    }
+  }
+
+  const itMilestones=[
+    {hours:0,   label:'A1', desc:'Iniciante absoluto'},
+    {hours:120, label:'A2', desc:'Básico — pode se virar em situações simples'},
+    {hours:250, label:'B1', desc:'Intermediário — conversa sobre temas cotidianos'},
+    {hours:400, label:'B2', desc:'Intermediário-avançado — fluência funcional'},
+    {hours:600, label:'C1', desc:'Avançado — uso fluente e espontâneo'},
+    {hours:1000,label:'C2', desc:'Maestria — equivalente a falante nativo'},
+  ];
+  const deMilestones=[
+    {hours:0,   label:'A1', desc:'Iniciante absoluto'},
+    {hours:80,  label:'A2', desc:'Básico — expressões do cotidiano'},
+    {hours:200, label:'B1', desc:'Intermediário — independência linguística'},
+    {hours:400, label:'B2', desc:'Intermediário-avançado — fluência funcional'},
+    {hours:650, label:'C1', desc:'Avançado — uso fluente e espontâneo'},
+  ];
+
+  // effectiveMins = baseline (nível real declarado) + minutos registrados no app
+  const itEffective = BASELINE.Italiano + minsBySub('Italiano');
+  const deEffective = BASELINE.Alemão   + minsBySub('Alemão');
+  renderDynamicGoal('it', itEffective, BL);
+  renderDynamicGoal('de', deEffective, AM);
+  renderOneLang('Italiano','it', BL, itMilestones, 600, 'Meta: 600h (C1)', itEffective);
+  renderOneLang('Alemão',  'de', AM, deMilestones, 650, 'Meta: 650h (B2)', deEffective);
+}
+
+function renderAll() {
+  renderHome();
+  renderLog();
+  renderStats();
+  renderGame();
+  renderLang();
+}
+
+renderAll();
+</script>
+</body>
+</html>
