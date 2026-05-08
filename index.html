@@ -305,7 +305,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
   <div class="log-section">
     <div class="field">
       <label>Categoria</label>
-      <select id="fCat">
+      <select id="fCat" onchange="filterSubs()">
         <option value="medicina">Medicina</option>
         <option value="idiomas">Idiomas</option>
         <option value="habitos">Hábitos</option>
@@ -314,13 +314,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
     </div>
     <div class="field">
       <label>Subcategoria</label>
-      <select id="fSub">
-        <option>Anatomia</option><option>Fisiologia</option>
-        <option>Farmacologia</option><option>Bioquímica</option>
-        <option>Italiano</option><option>Alemão</option>
-        <option>Sono</option><option>Exercício</option>
-        <option>ACLS</option><option>CRI</option><option>Outro</option>
-      </select>
+      <select id="fSub"></select>
     </div>
     <div class="field">
       <label>Duração (minutos)</label>
@@ -350,7 +344,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
         </select>
       </div>
     </div>
-    <button class="btn-submit" onclick="addLog()">Registrar</button>
+    <button class="btn-submit" id="btnSubmit" onclick="addLog()">Registrar</button>
   </div>
 
   <div class="div"></div>
@@ -512,11 +506,9 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
     <!-- Dynamic goal -->
     <div style="background:var(--surface);border-radius:14px;padding:22px;margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="margin-bottom:18px">
         <span class="section-label">meta dinâmica</span>
-        <button style="display:none">
       </div>
-
       <div id="it-dynamic-goal"></div>
     </div>
 
@@ -603,11 +595,9 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
     <!-- Dynamic goal DE -->
     <div style="background:var(--surface);border-radius:14px;padding:22px;margin-bottom:40px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="margin-bottom:18px">
         <span class="section-label">meta dinâmica</span>
-        <button style="display:none">
       </div>
-
       <div id="de-dynamic-goal"></div>
     </div>
 
@@ -798,7 +788,10 @@ function addLog() {
   const ts=Date.now();
   const log={cat,sub,dur,desc,qual,mood,xp,date:today(),ts};
 
+  const btn=document.getElementById('btnSubmit');
+  btn.disabled=true; btn.textContent='Salvando…';
   saveLogToSupabase(log).then(saved => {
+    btn.disabled=false; btn.textContent='Registrar';
     if (!saved) { showToast('Erro ao salvar log'); return; }
     log.id = saved.id;
     S.logs.unshift(log);
@@ -935,13 +928,13 @@ function renderLog() {
     <div class="log-entry" style="position:relative">
       <div class="log-dot" style="background:${colors[l.cat]}"></div>
       <div class="log-entry-left">
-        <div class="log-entry-name">${l.desc}</div>
-        <div class="log-entry-sub">${l.sub} · ${l.date}</div>
+        <div class="log-entry-name">${esc(l.desc)}</div>
+        <div class="log-entry-sub">${esc(l.sub)} · ${l.date}</div>
       </div>
       <div class="log-entry-right">
         <div class="log-entry-dur">${fmtH(l.dur)}</div>
         <div class="log-entry-xp">+${l.xp} xp</div>
-        <button onclick="deleteLog(${l.id})" style="background:none;border:none;color:var(--sub);cursor:pointer;font-size:12px;margin-top:4px;padding:0">✕ Deletar</button>
+        <button onclick="deleteLog('${esc(l.id)}')" style="background:none;border:none;color:var(--sub);cursor:pointer;font-size:12px;margin-top:4px;padding:0">✕ Deletar</button>
       </div>
     </div>`).join('');
 }
@@ -1067,6 +1060,31 @@ function renderGame() {
 // ── UTILS ──
 function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
 function sty(id,prop,v){const e=document.getElementById(id);if(e)e.style[prop]=v;}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── GOAL DATE PERSISTENCE (localStorage) ──
+function save() {
+  const keys=['itGoal_b1half','itGoal_b2','itGoal_c1','deGoal_b1half','deGoal_b2','deGoal_c1'];
+  const d={};
+  keys.forEach(k=>{if(S[k])d[k]=S[k];});
+  localStorage.setItem('atlas_goals',JSON.stringify(d));
+}
+function loadGoals() {
+  try { Object.assign(S,JSON.parse(localStorage.getItem('atlas_goals')||'{}')); } catch(e){}
+}
+
+// ── SUBCATEGORY FILTER ──
+const SUB_BY_CAT = {
+  medicina:   ['Anatomia','Fisiologia','Farmacologia','Bioquímica','Outro'],
+  idiomas:    ['Italiano','Alemão'],
+  habitos:    ['Sono','Exercício','Outro'],
+  credencial: ['ACLS','CRI','Outro'],
+};
+function filterSubs() {
+  const cat=document.getElementById('fCat').value;
+  const sel=document.getElementById('fSub');
+  sel.innerHTML=(SUB_BY_CAT[cat]||[]).map(s=>`<option>${s}</option>`).join('');
+}
 
 
 function renderDynamicGoal(lang, totalMins, color) {
@@ -1358,8 +1376,8 @@ function renderLang() {
         <div class="log-entry">
           <div class="log-dot" style="background:${color}"></div>
           <div class="log-entry-left">
-            <div class="log-entry-name">${l.desc}</div>
-            <div class="log-entry-sub">${l.date} · qual. ${l.qual}/5 · ${l.mood}</div>
+            <div class="log-entry-name">${esc(l.desc)}</div>
+            <div class="log-entry-sub">${l.date} · qual. ${l.qual}/5 · ${esc(l.mood)}</div>
           </div>
           <div class="log-entry-right">
             <div class="log-entry-dur">${fmtH(l.dur)}</div>
@@ -1396,7 +1414,7 @@ function renderLang() {
 
 async function deleteLogFromSupabase(logId) {
   try {
-    const { error } = await supabase
+    const { error } = await sbClient
       .from('logs')
       .delete()
       .eq('id', logId);
@@ -1407,6 +1425,7 @@ async function deleteLogFromSupabase(logId) {
 }
 
 function deleteLog(logId) {
+  if (!confirm('Deletar este log?')) return;
   deleteLogFromSupabase(logId).then(success => {
     if (!success) { showToast('Erro ao deletar'); return; }
     const log = S.logs.find(l => l.id === logId);
@@ -1428,6 +1447,8 @@ function renderAll() {
   renderLang();
 }
 
+loadGoals();
+filterSubs();
 loadLogsFromSupabase();
 </script>
 </body>
