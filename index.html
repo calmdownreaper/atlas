@@ -433,8 +433,6 @@ body::after {
       <select id="fCat" onchange="filterSubs()">
         <option value="medicina">Medicina</option>
         <option value="idiomas">Idiomas</option>
-        <option value="habitos">Hábitos</option>
-        <option value="credencial">Credencial</option>
       </select>
     </div>
     <div class="field">
@@ -770,7 +768,7 @@ const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const USER_ID = '00000000-0000-0000-0000-000000000001';
 
 // ── STATE ──
-const XP_RATE = { medicina:15, idiomas:12, habitos:8, credencial:20 };
+const XP_RATE = { medicina:15, idiomas:12 };
 const LEVELS = [
   {min:0,    title:'Estudante Iniciante'},
   {min:500,  title:'Acadêmico'},
@@ -996,9 +994,9 @@ function renderHome() {
 
   // Home chart — stacked bar 7d
   const days=last7();
-  const cats=['medicina','idiomas','habitos','credencial'];
-  const colors=[BL+'cc',GR+'cc',AM+'cc',RD+'cc'];
-  const labels=['Medicina','Idiomas','Hábitos','Credencial'];
+  const cats=['medicina','idiomas'];
+  const colors=[BL+'cc',GR+'cc'];
+  const labels=['Medicina','Idiomas'];
   mk('chartHome',{
     type:'bar',
     data:{
@@ -1070,7 +1068,7 @@ function renderHome() {
 function renderLog() {
   const el=document.getElementById('logList'); if(!el) return;
   if(!S.logs.length){ el.innerHTML='<div style="font-size:14px;color:var(--sub);padding:20px 0">Nenhuma entrada ainda.</div>'; return; }
-  const colors={medicina:BL,idiomas:GR,habitos:AM,credencial:RD};
+  const colors={medicina:BL,idiomas:GR};
   el.innerHTML=S.logs.slice(0,25).map(l=>`
     <div class="log-entry" style="position:relative">
       <div class="log-dot" style="background:${colors[l.cat]}"></div>
@@ -1102,7 +1100,7 @@ function renderStats() {
   });
 
   // Cat rows table
-  const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR},{k:'habitos',n:'Hábitos',c:AM},{k:'credencial',n:'Credencial',c:RD}];
+  const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR}];
   const el=document.getElementById('statCatRows'); if(!el) return;
   el.innerHTML=cats.map(c=>`
     <tr style="border-bottom:1px solid var(--line)">
@@ -1177,7 +1175,7 @@ function renderGame() {
   sty('gameLvlBar','width',lv.pct+'%');
 
   // XP rows
-  const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR},{k:'habitos',n:'Hábitos',c:AM},{k:'credencial',n:'Credencial',c:RD}];
+  const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR}];
   const el=document.getElementById('gameXPRows'); if(el){
     const maxXP=Math.max(...cats.map(c=>S.logs.filter(l=>l.cat===c.k).reduce((a,l)=>a+l.xp,0)),1);
     el.innerHTML=cats.map(c=>{
@@ -1236,8 +1234,6 @@ function loadGoals() {
 const SUB_BY_CAT = {
   medicina:   ['Anatomia','Fisiologia','Farmacologia','Bioquímica','Outro'],
   idiomas:    ['Italiano','Alemão'],
-  habitos:    ['Sono','Exercício','Outro'],
-  credencial: ['ACLS','CRI','Outro'],
 };
 function filterSubs() {
   const cat=document.getElementById('fCat').value;
