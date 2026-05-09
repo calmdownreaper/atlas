@@ -929,7 +929,7 @@ function addLog() {
   const qual=parseInt(document.getElementById('fQual').value);
   const mood=document.getElementById('fMood').value;
   if(!dur){showToast('Informe a duração');return;}
-  const xp=Math.round((dur/30)*XP_RATE[cat]*(qual/3));
+  const xp=Math.round((dur/30)*(XP_RATE[cat]??10)*(qual/3));
   const ts=Date.now();
   const log={cat,sub,dur,desc,qual,mood,xp,date:today(),ts};
 
@@ -1140,7 +1140,6 @@ function renderStats() {
   const goals=[
     {n:'Medicina',  target:600, done:minsBy('medicina',7), c:BL},
     {n:'Idiomas',   target:210, done:minsBy('idiomas',7),  c:GR},
-    {n:'Exercício', target:150, done:minsBySub('Exercício',7), c:AM},
   ];
   const mel=document.getElementById('metasRows'); if(mel){
     mel.innerHTML=goals.map(g=>{
