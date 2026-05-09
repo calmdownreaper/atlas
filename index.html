@@ -1151,10 +1151,39 @@ function renderStats() {
     }).join('');
   }
 
-  const fluencia=[
-    {n:'Italiano B2→C1',sub:'Italiano',target:3000,c:BL},
-    {n:'Alemão A2→B1',  sub:'Alemão',  target:1500,c:AM},
+  const itMilestones=[
+    {hours:0,   label:'A1'},
+    {hours:120, label:'A2'},
+    {hours:250, label:'B1'},
+    {hours:400, label:'B2'},
+    {hours:600, label:'C1'},
+    {hours:1000,label:'C2'},
   ];
+  const deMilestones=[
+    {hours:0,   label:'A1'},
+    {hours:80,  label:'A2'},
+    {hours:200, label:'B1'},
+    {hours:400, label:'B2'},
+    {hours:650, label:'C1'},
+  ];
+  function levelInfo(minsTot, milestones) {
+    const h=minsTot/60;
+    let cur=milestones[0];
+    for(const m of milestones) { if(h>=m.hours) cur=m; else break; }
+    const idx=milestones.indexOf(cur);
+    const next=milestones[idx+1];
+    if(!next) return null;
+    const remaining=next.hours-cur.hours;
+    return {cur:cur.label, next:next.label, target:(remaining*60)};
+  }
+  const itEff=BASELINE.Italiano+minsBySub('Italiano');
+  const deEff=BASELINE.Alemão+minsBySub('Alemão');
+  const itLvl=levelInfo(itEff,itMilestones);
+  const deLvl=levelInfo(deEff,deMilestones);
+  const fluencia=[
+    itLvl ? {n:`Italiano ${itLvl.cur}→${itLvl.next}`,sub:'Italiano',target:itLvl.target,c:BL} : null,
+    deLvl ? {n:`Alemão ${deLvl.cur}→${deLvl.next}`,sub:'Alemão',target:deLvl.target,c:AM} : null,
+  ].filter(x=>x);
   const fel=document.getElementById('fluenciaRows'); if(fel){
     fel.innerHTML=fluencia.map(g=>{
       const done=minsBySub(g.sub); const pct=Math.min(100,Math.round(done/g.target*100));
