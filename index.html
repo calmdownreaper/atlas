@@ -619,6 +619,17 @@ body::after {
       <div class="section-header"><span class="section-label">Meta de fluência</span></div>
       <div style="margin-bottom:8px;font-size:22px;font-weight:300;color:var(--text)" id="it-fluency-level">B1 →</div>
       <div style="font-size:13px;color:var(--sub);margin-bottom:20px" id="it-fluency-desc">Estimativa baseada em horas acumuladas</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;display:flex;gap:24px">
+        <div><span style="color:var(--text);font-weight:500" id="it-level-goal-label">Meta mudança de nível:</span> <span id="it-level-goal-val">— h</span></div>
+        <div><span style="color:var(--text);font-weight:500" id="it-max-goal-label">Meta máxima:</span> <span id="it-max-goal-val">— h</span></div>
+      </div>
+      <div class="prog">
+        <div class="prog-top">
+          <span class="prog-name" id="it-level-progress-label">Progresso nível</span>
+          <span class="prog-val" id="it-level-progress-pct">0%</span>
+        </div>
+        <div class="prog-track" style="height:4px"><div class="prog-fill" id="it-level-progress-bar" style="width:0%;background:#9e9e9e"></div></div>
+      </div>
       <div class="prog">
         <div class="prog-top">
           <span class="prog-name" id="it-goal-label">Meta: 600h (B2)</span>
@@ -703,6 +714,17 @@ body::after {
       <div class="section-header"><span class="section-label">Meta de fluência</span></div>
       <div style="margin-bottom:8px;font-size:22px;font-weight:300;color:var(--text)" id="de-fluency-level">A1 →</div>
       <div style="font-size:13px;color:var(--sub);margin-bottom:20px" id="de-fluency-desc">Estimativa baseada em horas acumuladas</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:16px;display:flex;gap:24px">
+        <div><span style="color:var(--text);font-weight:500" id="de-level-goal-label">Meta mudança de nível:</span> <span id="de-level-goal-val">— h</span></div>
+        <div><span style="color:var(--text);font-weight:500" id="de-max-goal-label">Meta máxima:</span> <span id="de-max-goal-val">— h</span></div>
+      </div>
+      <div class="prog">
+        <div class="prog-top">
+          <span class="prog-name" id="de-level-progress-label">Progresso nível</span>
+          <span class="prog-val" id="de-level-progress-pct">0%</span>
+        </div>
+        <div class="prog-track" style="height:4px"><div class="prog-fill" id="de-level-progress-bar" style="width:0%;background:#9e9e9e"></div></div>
+      </div>
       <div class="prog">
         <div class="prog-top">
           <span class="prog-name" id="de-goal-label">Meta: 650h (B2)</span>
@@ -1369,11 +1391,53 @@ function renderDynamicGoal(lang, totalMins, color) {
       </div>
     </div>`).join('');
 
+  // Dynamic fluency goal (next level)
+  const itMilestones=[
+    {hours:0,   label:'A1'},
+    {hours:120, label:'A2'},
+    {hours:250, label:'B1'},
+    {hours:400, label:'B2'},
+    {hours:600, label:'C1'},
+    {hours:1000,label:'C2'},
+  ];
+  const deMilestones=[
+    {hours:0,   label:'A1'},
+    {hours:80,  label:'A2'},
+    {hours:200, label:'B1'},
+    {hours:400, label:'B2'},
+    {hours:650, label:'C1'},
+  ];
+  const milestones = lang==='it' ? itMilestones : deMilestones;
+  const h = totalMins/60;
+  let curLvl = milestones[0];
+  for(const m of milestones) { if(h >= m.hours) curLvl = m; else break; }
+  const curIdx = milestones.indexOf(curLvl);
+  const nextLvl = milestones[curIdx+1];
+  const b2MinIdx = milestones.findIndex(m => m.label==='B2');
+  const b2Mins = milestones[b2MinIdx].hours * 60;
+  const nextTarget = nextLvl ? (nextLvl.hours - curLvl.hours)*60 : 0;
+  const nextLabel = nextLvl ? `${lang==='it'?'Italiano':'Alemão'} ${curLvl.label}→${nextLvl.label}` : null;
+
+  const dynamicRow = nextLabel ? `
+    <div style="padding:16px 0;border:1px solid var(--line);border-radius:4px;padding:12px;margin-bottom:16px;background:var(--bg2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div>
+          <span style="font-size:13px;color:var(--text);font-weight:500">${nextLabel} (próximo)</span>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--sub);margin-left:8px">${fmtH(totalMins)} / ${fmtH(nextTarget)}</span>
+        </div>
+        <span style="font-size:11px;color:var(--sub)"><strong>B2:</strong> ${fmtH(b2Mins)}</span>
+      </div>
+      <div style="height:2px;background:var(--line);border-radius:2px">
+        <div style="height:100%;width:${Math.min(100,Math.round(totalMins/nextTarget*100))}%;background:${color};border-radius:2px;transition:width 0.8s"></div>
+      </div>
+    </div>` : '';
+
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <span style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--sub)">Metas de progresso</span>
       <span style="font-size:11px;color:var(--sub)">ritmo: <span style="font-family:var(--mono);color:var(--text)">${Math.round(avg30)}m/dia</span></span>
     </div>
+    ${dynamicRow}
     ${pickers}
     ${rows}
   `;
@@ -1506,6 +1570,24 @@ function renderLang() {
     const nextLvl=milestones[milestones.indexOf(lvl)+1];
     set(prefix+'-fluency-level', lvl.label+(nextLvl?' → '+nextLvl.label:''));
     set(prefix+'-fluency-desc', lvl.desc + (BASELINE[sub]>0 ? ' · Calibrado ao seu nível declarado.' : ''));
+
+    // Level change goal
+    if(nextLvl) {
+      const levelChangeHours=(nextLvl.hours-lvl.hours)*60;
+      set(prefix+'-level-goal-val', lvl.label+' → '+nextLvl.label+': '+fmtH(levelChangeHours));
+    }
+    const maxGoalLvl=milestones.find(m=>m.hours===goalH);
+    set(prefix+'-max-goal-val', (maxGoalLvl?maxGoalLvl.label+': ':'')+goalH+'h');
+
+    // Level progress bar
+    if(nextLvl) {
+      const totalHours=total/60;
+      const levelTotalHours=nextLvl.hours-lvl.hours;
+      const progressHours=Math.max(0,totalHours-lvl.hours);
+      const lvlPct=Math.min(100,Math.round(progressHours/levelTotalHours*100));
+      set(prefix+'-level-progress-pct', lvlPct+'%');
+      sty(prefix+'-level-progress-bar','width',lvlPct+'%');
+    }
 
     // Goal bar
     const goalMins=goalH*60;
