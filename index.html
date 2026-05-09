@@ -494,22 +494,24 @@ body::after {
     </div>
     <div class="section">
       <div class="section-header"><span class="section-label">Por categoria</span></div>
-      <div id="statCatRows"></div>
+      <div id="statCatTable" style="overflow-x:auto;margin-bottom:24px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text)">
+          <thead><tr style="border-bottom:1px solid var(--line);color:var(--sub)"><th style="text-align:left;padding:8px;font-weight:500">Categoria</th><th style="text-align:right;padding:8px">Hoje</th><th style="text-align:right;padding:8px">Semana</th><th style="text-align:right;padding:8px">Mês</th><th style="text-align:right;padding:8px">Global</th></tr></thead>
+          <tbody id="statCatRows"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <!-- IDIOMAS -->
   <div id="stat-idiomas" style="display:none">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:40px">
-      <div>
-        <div class="big-label">Italiano</div>
-        <div><span class="big-num" id="itBig" style="font-size:40px;color:var(--blue)">0</span><span class="big-unit">h</span></div>
-        <div style="font-size:12px;color:var(--sub);margin-top:4px" id="itWeekSub">0h esta semana</div>
-      </div>
-      <div>
-        <div class="big-label">Alemão</div>
-        <div><span class="big-num" id="deBig" style="font-size:40px;color:var(--amber)">0</span><span class="big-unit">h</span></div>
-        <div style="font-size:12px;color:var(--sub);margin-top:4px" id="deWeekSub">0h esta semana</div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Tempo de estudo</span></div>
+      <div id="statLangTable" style="overflow-x:auto;margin-bottom:40px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text)">
+          <thead><tr style="border-bottom:1px solid var(--line);color:var(--sub)"><th style="text-align:left;padding:8px;font-weight:500">Idioma</th><th style="text-align:right;padding:8px">Hoje</th><th style="text-align:right;padding:8px">Semana</th><th style="text-align:right;padding:8px">Mês</th><th style="text-align:right;padding:8px">Global</th></tr></thead>
+          <tbody id="statLangRows"></tbody>
+        </table>
       </div>
     </div>
     <div class="section">
@@ -867,6 +869,18 @@ function fmtHN(m) { return +(m/60).toFixed(2); }
 function last7() {
   return Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().slice(0,10); });
 }
+function thisWeek() {
+  const d=new Date(); const day=d.getDay();
+  const start=new Date(d); start.setDate(start.getDate()-day);
+  return Array.from({length:7},(_,i)=>{const x=new Date(start);x.setDate(x.getDate()+i);return x.toISOString().slice(0,10);});
+}
+function thisMonth() {
+  const today=new Date().toISOString().slice(0,10);
+  const [y,m,d]=today.split('-');
+  const days=[];
+  for(let i=1;i<=parseInt(d);i++) days.push(`${y}-${m}-${String(i).padStart(2,'0')}`);
+  return days;
+}
 function minsBy(cat, days=9999) {
   const c = new Date(); c.setDate(c.getDate()-days);
   return S.logs.filter(l=>l.cat===cat&&new Date(l.date)>=c).reduce((a,l)=>a+l.dur,0);
@@ -874,6 +888,14 @@ function minsBy(cat, days=9999) {
 function minsBySub(sub, days=9999) {
   const c = new Date(); c.setDate(c.getDate()-days);
   return S.logs.filter(l=>l.sub===sub&&new Date(l.date)>=c).reduce((a,l)=>a+l.dur,0);
+}
+function minsByPeriod(cat, period) {
+  const dates = period==='today' ? [today()] : period==='week' ? thisWeek() : period==='month' ? thisMonth() : [];
+  return S.logs.filter(l=>l.cat===cat&&dates.includes(l.date)).reduce((a,l)=>a+l.dur,0);
+}
+function minsBySubPeriod(sub, period) {
+  const dates = period==='today' ? [today()] : period==='week' ? thisWeek() : period==='month' ? thisMonth() : [];
+  return S.logs.filter(l=>l.sub===sub&&dates.includes(l.date)).reduce((a,l)=>a+l.dur,0);
 }
 function calcLevel(xp) {
   let i=0;
@@ -1079,22 +1101,34 @@ function renderStats() {
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#555',boxWidth:10,padding:16}}},scales:{x:{grid:{display:false},ticks:{color:'#444'}},y:{grid:{color:'#1a1a1a'},ticks:{color:'#444'},beginAtZero:true}}}
   });
 
-  // Cat rows
+  // Cat rows table
   const cats=[{k:'medicina',n:'Medicina',c:BL},{k:'idiomas',n:'Idiomas',c:GR},{k:'habitos',n:'Hábitos',c:AM},{k:'credencial',n:'Credencial',c:RD}];
   const el=document.getElementById('statCatRows'); if(!el) return;
   el.innerHTML=cats.map(c=>`
-    <div class="row-stat">
-      <div class="row-stat-left">
-        <div class="row-stat-name">${c.n}</div>
-        <div class="row-stat-sub">${S.logs.filter(l=>l.cat===c.k).length} sessões · ${fmtH(minsBy(c.k,7))} esta semana</div>
-      </div>
-      <div class="row-stat-val" style="color:${c.c}">${fmtH(minsBy(c.k))}</div>
-    </div>`).join('');
+    <tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:8px;color:${c.c};font-weight:500">${c.n}</td>
+      <td style="text-align:right;padding:8px">${fmtH(minsByPeriod(c.k,'today'))}</td>
+      <td style="text-align:right;padding:8px">${fmtH(minsByPeriod(c.k,'week'))}</td>
+      <td style="text-align:right;padding:8px">${fmtH(minsByPeriod(c.k,'month'))}</td>
+      <td style="text-align:right;padding:8px;font-weight:500">${fmtH(minsBy(c.k))}</td>
+    </tr>`).join('');
 
-  // Idiomas
-  const itT=minsBySub('Italiano'); const deT=minsBySub('Alemão');
-  set('itBig',fmtH(itT).replace('h','').replace('m','')); set('itWeekSub',fmtH(minsBySub('Italiano',7))+' esta semana');
-  set('deBig',fmtH(deT).replace('h','').replace('m','')); set('deWeekSub',fmtH(minsBySub('Alemão',7))+' esta semana');
+  // Idiomas - stats table
+  const langStats=[
+    {n:'Italiano',sub:'Italiano',c:BL},
+    {n:'Alemão',sub:'Alemão',c:AM},
+  ];
+  const lsr=document.getElementById('statLangRows');
+  if(lsr) {
+    lsr.innerHTML=langStats.map(l=>`
+      <tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:8px;color:${l.c};font-weight:500">${l.n}</td>
+        <td style="text-align:right;padding:8px">${fmtH(minsBySubPeriod(l.sub,'today'))}</td>
+        <td style="text-align:right;padding:8px">${fmtH(minsBySubPeriod(l.sub,'week'))}</td>
+        <td style="text-align:right;padding:8px">${fmtH(minsBySubPeriod(l.sub,'month'))}</td>
+        <td style="text-align:right;padding:8px;font-weight:500">${fmtH(minsBySub(l.sub))}</td>
+      </tr>`).join('');
+  }
   mk('chartLang',{
     type:'bar',
     data:{labels:days.map(d=>d.slice(5)),datasets:[
