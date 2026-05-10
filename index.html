@@ -2271,17 +2271,21 @@ function renderSleepTab() {
     const actualSleep = ((wakeH - slpH)  + 24) % 24;
     const latencyMin  = Math.round(((slpH - bedH) + 24) % 24 * 60);
     const effPct = Math.round((actualSleep / timeInBed) * 100);
-    const last7Total = LM.sleep.slice(0,7).reduce((s,l) => {
+    const last7Entries = LM.sleep.slice(0,7);
+    const last7Total = last7Entries.reduce((s,l) => {
       const wH = parseTimeToHours(l.wake_time), sH = parseTimeToHours(l.sleep_time);
       return s + ((wH - sH) + 24) % 24;
     }, 0);
-    const debt = Math.max(0, 56 - last7Total);
+    // Debt only counts days with logged data
+    const daysLogged = last7Entries.length;
+    const idealHours = daysLogged * 8;
+    const debt = Math.max(0, idealHours - last7Total);
     cardsEl.innerHTML = `
       <div class="mini-grid" style="border-radius:var(--r);overflow:hidden;margin-bottom:28px">
         <div class="mini-card"><div class="mini-card-label">Duração</div><div><span class="mini-card-val">${actualSleep.toFixed(1)}</span><span class="mini-card-unit">h</span></div><div class="mini-card-sub">Qualidade: ${recent.quality}/5</div></div>
         <div class="mini-card"><div class="mini-card-label">Eficiência</div><div><span class="mini-card-val">${effPct}</span><span class="mini-card-unit">%</span></div><div class="mini-card-sub">Latência: ${latencyMin}min</div></div>
         <div class="mini-card"><div class="mini-card-label">Acordou</div><div><span class="mini-card-val">${recent.awakenings}</span><span class="mini-card-unit">x</span></div><div class="mini-card-sub">na noite</div></div>
-        <div class="mini-card"><div class="mini-card-label">Débito sem.</div><div><span class="mini-card-val">${debt.toFixed(1)}</span><span class="mini-card-unit">h</span></div><div class="mini-card-sub">vs 8h/noite</div></div>
+        <div class="mini-card"><div class="mini-card-label">Débito</div><div><span class="mini-card-val">${debt.toFixed(1)}</span><span class="mini-card-unit">h</span></div><div class="mini-card-sub">${daysLogged}d logados: ${(idealHours - debt).toFixed(1)}/${idealHours}h</div></div>
       </div>`;
   } else {
     cardsEl.innerHTML = '';
