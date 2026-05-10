@@ -800,6 +800,15 @@ body::after {
       <div class="chart-wrap tall"><canvas id="chartCaffeine"></canvas></div>
     </div>
     <div class="section">
+      <div class="section-header"><span class="section-label">Meia-vida personalizada</span></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <input type="range" id="cafHalfLife" min="4" max="8" step="0.5" value="6" style="flex:1;cursor:pointer" oninput="updateHalfLife(this.value)">
+        <span id="hlValue" style="font-family:var(--mono);min-width:60px;text-align:right">6.0h</span>
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:20px;line-height:1.4" id="hlDesc">Metabolizador médio</div>
+    </div>
+
+    <div class="section">
       <div class="section-header"><span class="section-label">Registrar dose</span></div>
       <div class="field"><label>Horário (24h)</label><input type="text" id="cTime" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]"></div>
       <div class="field"><label>Dose (mg)</label><input type="number" id="cDose" placeholder="100" min="0" max="600"></div>
@@ -1871,6 +1880,14 @@ function setLifeTab(tab, btn) {
   renderLife();
 }
 
+function updateHalfLife(val) {
+  const hl = Math.max(4, Math.min(8, parseFloat(val)));
+  setCaffeineHalfLife(hl);
+  document.getElementById('hlValue').textContent = hl.toFixed(1) + 'h';
+  document.getElementById('hlDesc').textContent = getMetabolzerDesc(hl);
+  renderCaffeineTab();
+}
+
 function parseTimeToHours(timeStr) {
   if (!timeStr) return 0;
   const [h, m] = timeStr.split(':').map(Number);
@@ -1883,18 +1900,33 @@ function formatHour(decH) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
 
-function caffeineAtHour(hour, logs) {
+function getCaffeineHalfLife() {
+  return parseFloat(localStorage.getItem('caffeine_halflife') || '6');
+}
+
+function setCaffeineHalfLife(val) {
+  localStorage.setItem('caffeine_halflife', Math.max(4, Math.min(8, val)));
+}
+
+function getMetabolzerDesc(hl) {
+  if (hl < 4.5) return 'rápido (metabolizador rápido)';
+  if (hl < 5.5) return 'médio (metabolizador médio)';
+  if (hl < 6.5) return 'lento (metabolizador lento)';
+  return 'muito lento (sensível à cafeína)';
+}
+
+function caffeineAtHour(hour, logs, halfLife = 6) {
   return logs.reduce((sum, log) => {
     const doseH = parseTimeToHours(log.time_str);
     const elapsed = hour - doseH;
     if (elapsed < 0) return sum;
-    return sum + log.dose_mg * Math.pow(2, -elapsed / 6);
+    return sum + log.dose_mg * Math.pow(2, -elapsed / halfLife);
   }, 0);
 }
 
-function lastSafeDoseTime(doseMg, sleepHour = 23) {
-  if (doseMg <= 50) return sleepHour;
-  return sleepHour - 6 * Math.log2(doseMg / 50);
+function lastSafeDoseTime(doseMg, sleepHour = 23, halfLife = 6, threshold = 50) {
+  if (doseMg <= threshold) return sleepHour;
+  return sleepHour - halfLife * Math.log2(doseMg / threshold);
 }
 
 function pearson(xs, ys) {
@@ -1918,6 +1950,16 @@ async function loadLifeMetrics() {
     if (!cafRes.error) LM.caffeine = cafRes.data || [];
     if (!slpRes.error) LM.sleep    = slpRes.data || [];
     if (!engRes.error) LM.energy   = engRes.data || [];
+
+    // Initialize half-life slider
+    const hl = getCaffeineHalfLife();
+    const sliderEl = document.getElementById('cafHalfLife');
+    if (sliderEl) {
+      sliderEl.value = hl;
+      document.getElementById('hlValue').textContent = hl.toFixed(1) + 'h';
+      document.getElementById('hlDesc').textContent = getMetabolzerDesc(hl);
+    }
+
     renderLife();
   } catch(e) { console.error('loadLifeMetrics:', e); }
 }
@@ -1993,29 +2035,67 @@ function renderCaffeineTab() {
   const now = new Date();
   const nowH = now.getHours() + now.getMinutes() / 60;
   const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const currentMg = caffeineAtHour(nowH, todayLogs);
+
+  const halfLife = getCaffeineHalfLife();
+  const metabolizer = getMetabolzerDesc(halfLife);
+  const currentMg = caffeineAtHour(nowH, todayLogs, halfLife);
+
   const SLEEP_HOUR = 23;
-  const INTAKE_DOSE = 80; // Fixed 80mg per intake
-  const SLEEP_THRESHOLD = 30; // Target <30mg at sleep time
-  const safeH = lastSafeDoseTime(INTAKE_DOSE, SLEEP_HOUR);
+  const SLEEP_THRESHOLD = 50;
+  const DESIRED_DOSE = 100; // User could make this customizable
+
+  // Calculate timeline: now, +3h, +6h, sleep
+  const est_now = currentMg;
+  const est_plus3h = caffeineAtHour(nowH + 3, todayLogs, halfLife);
+  const est_plus6h = caffeineAtHour(nowH + 6, todayLogs, halfLife);
+  const est_sleep = caffeineAtHour(SLEEP_HOUR, todayLogs, halfLife);
+
+  // Last safe dose time for DESIRED_DOSE
+  const safeH = lastSafeDoseTime(DESIRED_DOSE, SLEEP_HOUR, halfLife, SLEEP_THRESHOLD);
   const safeStr = formatHour(safeH);
-  const lateDose = todayLogs.some(l => parseTimeToHours(l.time_str) > safeH);
+
+  const nearThreshold = est_sleep > SLEEP_THRESHOLD - 10; // Alert if within 10mg of threshold
+  const isAlert = nearThreshold || todayLogs.some(l => parseTimeToHours(l.time_str) > safeH);
 
   const insight = document.getElementById('caffeine-insight');
-  const debugInfo = `<div style="font-size:11px;color:var(--sub);margin-top:8px">Horário atual: ${nowStr} | Doses hoje: ${todayLogs.length}</div>`;
+  const debugInfo = `<div style="font-size:11px;color:var(--sub);margin-top:10px">Horário: ${nowStr} | Doses: ${todayLogs.length} | Meia-vida: <span style="color:var(--green)">${halfLife.toFixed(1)}h</span> — ${metabolizer}</div>`;
 
-  if (lateDose) {
-    insight.className = 'lm-insight lm-alert';
-    insight.innerHTML = `<div class="lm-insight-label">⚠ Alerta de Sono</div>Dose após ${safeStr} pode deixar >30mg no sistema ao dormir. ${Math.round(currentMg)}mg agora.${debugInfo}`;
+  let timelineHtml = `
+    <div style="font-size:12px;margin-top:12px">
+      <table style="width:100%;border-collapse:collapse;color:var(--text)">
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:6px 0">Agora (${nowStr})</td>
+          <td style="text-align:right;font-family:var(--mono);color:var(--green);text-shadow:0 0 6px rgba(200,150,10,0.4)">${Math.round(est_now)}mg</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line);color:var(--sub2)">
+          <td style="padding:6px 0">+3h (${formatHour(nowH + 3)})</td>
+          <td style="text-align:right;font-family:var(--mono)">${Math.round(est_plus3h)}mg</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line);color:var(--sub2)">
+          <td style="padding:6px 0">+6h (${formatHour(nowH + 6)})</td>
+          <td style="text-align:right;font-family:var(--mono)">${Math.round(est_plus6h)}mg</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)${est_sleep > SLEEP_THRESHOLD ? ';color:var(--red)' : ';color:var(--green)'}">
+          <td style="padding:6px 0">Dormir (23:00)</td>
+          <td style="text-align:right;font-family:var(--mono);text-shadow:${est_sleep > SLEEP_THRESHOLD ? '0 0 6px rgba(255,95,95,0.4)' : '0 0 6px rgba(200,150,10,0.4)'}">${Math.round(est_sleep)}mg ${est_sleep > SLEEP_THRESHOLD ? '⚠' : '✓'}</td>
+        </tr>
+      </table>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--green);text-shadow:0 0 6px rgba(200,150,10,0.4)">
+        <strong>Próxima dose segura (${DESIRED_DOSE}mg):</strong> até <strong>${safeStr}</strong>
+      </div>
+    </div>`;
+
+  insight.className = isAlert ? 'lm-insight lm-alert' : 'lm-insight';
+  if (isAlert) {
+    insight.innerHTML = `<div class="lm-insight-label">⚠ ${est_sleep > SLEEP_THRESHOLD ? 'Alto demais para dormir' : 'Perto do limite'}</div>${timelineHtml}${debugInfo}`;
   } else {
-    insight.className = 'lm-insight';
-    insight.innerHTML = `<div class="lm-insight-label">Cafeína Atual</div>${Math.round(currentMg)}mg no sistema. Última dose segura: <strong>${safeStr}</strong> (meta: <30mg às 23h)${debugInfo}`;
+    insight.innerHTML = `<div class="lm-insight-label">Cafeína — Estimativa</div>${timelineHtml}${debugInfo}`;
   }
 
-  // Decay curve 0–24h in 30min steps
+  // Decay curve 0–24h in 30min steps (with custom half-life)
   const pts = Array.from({length: 49}, (_, i) => ({
     label: i % 2 === 0 ? `${String(i/2|0).padStart(2,'0')}h` : '',
-    v: Math.max(0, caffeineAtHour(i * 0.5, todayLogs)),
+    v: Math.max(0, caffeineAtHour(i * 0.5, todayLogs, halfLife)),
   }));
 
   const ctx = document.getElementById('chartCaffeine').getContext('2d');
@@ -2026,7 +2106,7 @@ function renderCaffeineTab() {
       labels: pts.map(p => p.label),
       datasets: [
         { label: 'Cafeína', data: pts.map(p => p.v), borderColor: 'rgba(200,150,10,0.85)', backgroundColor: 'rgba(200,150,10,0.07)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-        { label: 'Meta sono (<30mg)', data: Array(49).fill(SLEEP_THRESHOLD), borderColor: 'rgba(255,95,95,0.5)', borderDash: [4,4], pointRadius: 0, borderWidth: 1, fill: false },
+        { label: `Limiar sono (${SLEEP_THRESHOLD}mg)`, data: Array(49).fill(SLEEP_THRESHOLD), borderColor: 'rgba(255,95,95,0.5)', borderDash: [4,4], pointRadius: 0, borderWidth: 1, fill: false },
       ]
     },
     options: {
