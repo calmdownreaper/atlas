@@ -297,6 +297,67 @@ html, body {
   border-radius: var(--r); padding: 16px 20px; margin-bottom: 28px;
   font-size: 14px; color: var(--text); line-height: 1.6;
 }
+
+/* ── CAFFEINE HALF-LIFE SLIDER ── */
+.hl-slider-group {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.hl-slider-wrapper {
+  flex: 1; display: flex; flex-direction: column; gap: 8px;
+}
+.hl-slider-labels {
+  display: flex; justify-content: space-between; font-size: 10px;
+  color: var(--sub2); font-weight: 500; letter-spacing: 0.05em;
+}
+input[type="range"].hl-slider {
+  width: 100%; height: 4px; background: var(--line);
+  border-radius: 2px; outline: none; cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="range"].hl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--green); cursor: pointer;
+  box-shadow: 0 0 8px var(--green), 0 0 16px rgba(200,150,10,0.5), inset 0 0 4px rgba(200,150,10,0.3);
+  border: 1px solid rgba(200,150,10,0.6);
+  transition: all 0.2s;
+}
+input[type="range"].hl-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px var(--green), 0 0 24px rgba(200,150,10,0.7), inset 0 0 6px rgba(200,150,10,0.4);
+  transform: scale(1.15);
+}
+input[type="range"].hl-slider::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--green); cursor: pointer;
+  box-shadow: 0 0 8px var(--green), 0 0 16px rgba(200,150,10,0.5), inset 0 0 4px rgba(200,150,10,0.3);
+  border: 1px solid rgba(200,150,10,0.6);
+  transition: all 0.2s;
+}
+input[type="range"].hl-slider::-moz-range-thumb:hover {
+  box-shadow: 0 0 12px var(--green), 0 0 24px rgba(200,150,10,0.7), inset 0 0 6px rgba(200,150,10,0.4);
+  transform: scale(1.15);
+}
+input[type="range"].hl-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, var(--line) 0%, rgba(200,150,10,0.15) 50%, var(--line) 100%);
+  height: 4px; border-radius: 2px;
+}
+input[type="range"].hl-slider::-moz-range-track {
+  background: linear-gradient(90deg, var(--line) 0%, rgba(200,150,10,0.15) 50%, var(--line) 100%);
+  height: 4px; border-radius: 2px; border: none;
+}
+.hl-display {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 80px;
+}
+.hl-value {
+  font-family: var(--mono); font-size: 16px; font-weight: 400;
+  color: var(--green); text-shadow: 0 0 8px rgba(200,150,10,0.5);
+  line-height: 1;
+}
+.hl-desc {
+  font-size: 10px; color: var(--sub); text-align: center; font-weight: 500;
+}
 .lm-insight-label {
   font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--green); margin-bottom: 8px;
@@ -801,11 +862,20 @@ body::after {
     </div>
     <div class="section">
       <div class="section-header"><span class="section-label">Meia-vida personalizada</span></div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-        <input type="range" id="cafHalfLife" min="4" max="8" step="0.5" value="6" style="flex:1;cursor:pointer" oninput="updateHalfLife(this.value)">
-        <span id="hlValue" style="font-family:var(--mono);min-width:60px;text-align:right">6.0h</span>
+      <div class="hl-slider-group">
+        <div class="hl-slider-wrapper">
+          <div class="hl-slider-labels">
+            <span>4h<br><span style="font-size:9px;color:var(--sub2)">rápido</span></span>
+            <span style="text-align:center">6h<br><span style="font-size:9px;color:var(--sub2)">médio</span></span>
+            <span style="text-align:right">8h<br><span style="font-size:9px;color:var(--sub2)">lento</span></span>
+          </div>
+          <input type="range" id="cafHalfLife" class="hl-slider" min="4" max="8" step="0.5" value="6" oninput="updateHalfLife(this.value)">
+        </div>
+        <div class="hl-display">
+          <div class="hl-value" id="hlValue">6.0h</div>
+          <div class="hl-desc" id="hlDesc">médio</div>
+        </div>
       </div>
-      <div style="font-size:12px;color:var(--sub);margin-bottom:20px;line-height:1.4" id="hlDesc">Metabolizador médio</div>
     </div>
 
     <div class="section">
@@ -1884,7 +1954,9 @@ function updateHalfLife(val) {
   const hl = Math.max(4, Math.min(8, parseFloat(val)));
   setCaffeineHalfLife(hl);
   document.getElementById('hlValue').textContent = hl.toFixed(1) + 'h';
-  document.getElementById('hlDesc').textContent = getMetabolzerDesc(hl);
+  const desc = getMetabolzerDesc(hl);
+  // Extract just the first part (e.g., "rápido" from "rápido (metabolizador rápido)")
+  document.getElementById('hlDesc').textContent = desc.split(' ')[0];
   renderCaffeineTab();
 }
 
@@ -1957,7 +2029,8 @@ async function loadLifeMetrics() {
     if (sliderEl) {
       sliderEl.value = hl;
       document.getElementById('hlValue').textContent = hl.toFixed(1) + 'h';
-      document.getElementById('hlDesc').textContent = getMetabolzerDesc(hl);
+      const desc = getMetabolzerDesc(hl);
+      document.getElementById('hlDesc').textContent = desc.split(' ')[0];
     }
 
     renderLife();
