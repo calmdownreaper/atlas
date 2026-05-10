@@ -817,6 +817,7 @@ body::after {
     <div class="section">
       <div class="section-header"><span class="section-label">Hoje</span></div>
       <div id="caffeine-logs"></div>
+      <div style="font-size:10px;color:var(--sub2);margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">[Debug] Doses carregadas: <span id="caf-count">0</span> | Total no sistema: <span id="caf-total">0</span>mg</div>
     </div>
   </div>
 
@@ -1926,13 +1927,24 @@ async function saveCaffeine() {
   const dose    = parseFloat(document.getElementById('cDose').value);
   const type    = document.getElementById('cType').value;
   if (!timeStr || isNaN(dose) || dose <= 0) { showToast('Informe horário e dose'); return; }
+
+  console.log(`[Caffeine] Saving: ${timeStr}, ${dose}mg, type=${type}`);
+
   const { data, error } = await sbClient.from('caffeine_logs')
     .insert({ user_id: USER_ID, date: today(), time_str: timeStr, dose_mg: dose, type, ts: new Date().toISOString() })
     .select().single();
-  if (error) { showToast('Erro ao salvar'); console.error(error); return; }
+
+  if (error) {
+    console.error('[Caffeine] Error:', error);
+    showToast(`Erro: ${error.message || 'falha ao salvar'}`);
+    return;
+  }
+
+  console.log('[Caffeine] Saved:', data);
   LM.caffeine.unshift(data);
+  document.getElementById('cTime').value = '';
   document.getElementById('cDose').value = '';
-  showToast('Dose registrada');
+  showToast(`✓ ${dose}mg @ ${timeStr} registrado`);
   renderLife();
 }
 
@@ -1978,7 +1990,9 @@ function renderLife() {
 
 function renderCaffeineTab() {
   const todayLogs = LM.caffeine.filter(l => l.date === today());
-  const nowH = new Date().getHours() + new Date().getMinutes() / 60;
+  const now = new Date();
+  const nowH = now.getHours() + now.getMinutes() / 60;
+  const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const currentMg = caffeineAtHour(nowH, todayLogs);
   const SLEEP_HOUR = 23;
   const avgDose = LM.caffeine.length
@@ -1989,12 +2003,14 @@ function renderCaffeineTab() {
   const lateDose = todayLogs.some(l => parseTimeToHours(l.time_str) > safeH);
 
   const insight = document.getElementById('caffeine-insight');
+  const debugInfo = `<div style="font-size:11px;color:var(--sub);margin-top:8px">Horário atual: ${nowStr} | Doses hoje: ${todayLogs.length}</div>`;
+
   if (lateDose) {
     insight.className = 'lm-insight lm-alert';
-    insight.innerHTML = `<div class="lm-insight-label">⚠ Alerta de Sono</div>Dose após ${safeStr} pode atrasar o sono. ${Math.round(currentMg)}mg ainda no sistema.`;
+    insight.innerHTML = `<div class="lm-insight-label">⚠ Alerta de Sono</div>Dose após ${safeStr} pode atrasar o sono. ${Math.round(currentMg)}mg ainda no sistema.${debugInfo}`;
   } else {
     insight.className = 'lm-insight';
-    insight.innerHTML = `<div class="lm-insight-label">Cafeína Atual</div>${Math.round(currentMg)}mg no sistema. Última dose possível hoje: <strong>${safeStr}</strong>`;
+    insight.innerHTML = `<div class="lm-insight-label">Cafeína Atual</div>${Math.round(currentMg)}mg no sistema. Última dose possível hoje: <strong>${safeStr}</strong>${debugInfo}`;
   }
 
   // Decay curve 0–24h in 30min steps
@@ -2027,13 +2043,18 @@ function renderCaffeineTab() {
   const el = document.getElementById('caffeine-logs');
   if (!todayLogs.length) {
     el.innerHTML = '<div style="color:var(--sub);font-size:13px;padding:16px 0">Nenhuma dose hoje</div>';
-    return;
+  } else {
+    el.innerHTML = todayLogs.map(l => `
+      <div class="row-stat">
+        <div><div class="row-stat-name">${l.type.replace('_',' ')}</div><div class="row-stat-sub">${l.time_str}</div></div>
+        <div class="row-stat-val">${l.dose_mg}mg</div>
+      </div>`).join('');
   }
-  el.innerHTML = todayLogs.map(l => `
-    <div class="row-stat">
-      <div><div class="row-stat-name">${l.type.replace('_',' ')}</div><div class="row-stat-sub">${l.time_str}</div></div>
-      <div class="row-stat-val">${l.dose_mg}mg</div>
-    </div>`).join('');
+
+  // Debug info
+  const totalToday = todayLogs.reduce((s,l) => s + l.dose_mg, 0);
+  document.getElementById('caf-count').textContent = todayLogs.length;
+  document.getElementById('caf-total').textContent = Math.round(totalToday);
 }
 
 function renderSleepTab() {
