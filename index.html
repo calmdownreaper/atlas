@@ -1995,10 +1995,9 @@ function renderCaffeineTab() {
   const nowStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const currentMg = caffeineAtHour(nowH, todayLogs);
   const SLEEP_HOUR = 23;
-  const avgDose = LM.caffeine.length
-    ? LM.caffeine.reduce((s,l) => s + l.dose_mg, 0) / LM.caffeine.length
-    : 100;
-  const safeH = lastSafeDoseTime(avgDose, SLEEP_HOUR);
+  const INTAKE_DOSE = 80; // Fixed 80mg per intake
+  const SLEEP_THRESHOLD = 30; // Target <30mg at sleep time
+  const safeH = lastSafeDoseTime(INTAKE_DOSE, SLEEP_HOUR);
   const safeStr = formatHour(safeH);
   const lateDose = todayLogs.some(l => parseTimeToHours(l.time_str) > safeH);
 
@@ -2007,10 +2006,10 @@ function renderCaffeineTab() {
 
   if (lateDose) {
     insight.className = 'lm-insight lm-alert';
-    insight.innerHTML = `<div class="lm-insight-label">⚠ Alerta de Sono</div>Dose após ${safeStr} pode atrasar o sono. ${Math.round(currentMg)}mg ainda no sistema.${debugInfo}`;
+    insight.innerHTML = `<div class="lm-insight-label">⚠ Alerta de Sono</div>Dose após ${safeStr} pode deixar >30mg no sistema ao dormir. ${Math.round(currentMg)}mg agora.${debugInfo}`;
   } else {
     insight.className = 'lm-insight';
-    insight.innerHTML = `<div class="lm-insight-label">Cafeína Atual</div>${Math.round(currentMg)}mg no sistema. Última dose possível hoje: <strong>${safeStr}</strong>${debugInfo}`;
+    insight.innerHTML = `<div class="lm-insight-label">Cafeína Atual</div>${Math.round(currentMg)}mg no sistema. Última dose segura: <strong>${safeStr}</strong> (meta: <30mg às 23h)${debugInfo}`;
   }
 
   // Decay curve 0–24h in 30min steps
@@ -2027,7 +2026,7 @@ function renderCaffeineTab() {
       labels: pts.map(p => p.label),
       datasets: [
         { label: 'Cafeína', data: pts.map(p => p.v), borderColor: 'rgba(200,150,10,0.85)', backgroundColor: 'rgba(200,150,10,0.07)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-        { label: 'Limiar', data: Array(49).fill(50), borderColor: 'rgba(255,95,95,0.5)', borderDash: [4,4], pointRadius: 0, borderWidth: 1, fill: false },
+        { label: 'Meta sono (<30mg)', data: Array(49).fill(SLEEP_THRESHOLD), borderColor: 'rgba(255,95,95,0.5)', borderDash: [4,4], pointRadius: 0, borderWidth: 1, fill: false },
       ]
     },
     options: {
