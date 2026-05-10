@@ -2253,6 +2253,16 @@ function renderSleepTab() {
   const cardsEl = document.getElementById('sleep-cards');
   const recent = LM.sleep[0];
 
+  // Get last 7 calendar days (even without data)
+  const last7Days = [];
+  const today_ = new Date(today());
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today_);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    last7Days.push(dateStr);
+  }
+
   if (recent) {
     const bedH  = parseTimeToHours(recent.bedtime);
     const slpH  = parseTimeToHours(recent.sleep_time);
@@ -2277,18 +2287,32 @@ function renderSleepTab() {
     cardsEl.innerHTML = '';
   }
 
-  const last7 = LM.sleep.slice(0,7).reverse();
+  const sleepByDate = {};
+  LM.sleep.forEach(s => { sleepByDate[s.date] = s.quality; });
+  const chartData = last7Days.map(d => sleepByDate[d] || null);
+  const chartDataCount = chartData.filter(v => v != null).length;
+  const chartHeight = Math.max(140, 60 + chartDataCount * 15);
+
   const ctx = document.getElementById('chartSleepQ').getContext('2d');
   if (chartSleepQ) chartSleepQ.destroy();
+  const chartContainer = document.getElementById('chartSleepQ').parentElement;
+  chartContainer.style.height = chartHeight + 'px';
+
   chartSleepQ = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: last7.map(l => l.date.slice(5)),
-      datasets: [{ data: last7.map(l => l.quality), backgroundColor: last7.map(l => l.quality >= 4 ? 'rgba(200,150,10,0.65)' : l.quality >= 3 ? 'rgba(91,156,246,0.6)' : 'rgba(255,95,95,0.5)'), borderRadius: 4 }]
+      labels: last7Days.map(d => d.slice(5)),
+      datasets: [{
+        data: chartData,
+        backgroundColor: chartData.map(v => v == null ? 'rgba(80,80,80,0.2)' : v >= 4 ? 'rgba(200,150,10,0.65)' : v >= 3 ? 'rgba(91,156,246,0.6)' : 'rgba(255,95,95,0.5)'),
+        borderRadius: 4,
+        borderColor: chartData.map(v => v == null ? 'rgba(80,80,80,0.3)' : 'transparent'),
+        borderWidth: chartData.map(v => v == null ? 1 : 0)
+      }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw == null ? '—' : `${ctx.raw}/5` } } },
       scales: {
         x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' } },
         y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' }, min: 0, max: 5 }
