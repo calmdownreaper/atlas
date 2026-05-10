@@ -291,6 +291,26 @@ html, body {
 
 
 
+/* ── LIFE METRICS ── */
+.lm-insight {
+  background: var(--surface); border: 1px solid rgba(200,150,10,0.2);
+  border-radius: var(--r); padding: 16px 20px; margin-bottom: 28px;
+  font-size: 14px; color: var(--text); line-height: 1.6;
+}
+.lm-insight-label {
+  font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--green); margin-bottom: 8px;
+  text-shadow: 0 0 10px rgba(200,150,10,0.5);
+}
+.lm-alert { border-color: rgba(255,95,95,0.3); background: rgba(255,95,95,0.04); }
+.lm-alert .lm-insight-label { color: var(--red); text-shadow: 0 0 10px rgba(255,95,95,0.5); }
+.corr-item { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.corr-item:last-child { border-bottom: none; }
+.corr-label { font-size: 14px; color: var(--text); margin-bottom: 4px; }
+.corr-val { font-family: var(--mono); font-size: 12px; color: var(--sub); }
+.corr-val.pos { color: var(--green); text-shadow: 0 0 6px rgba(200,150,10,0.4); }
+.corr-val.neg { color: var(--red); text-shadow: 0 0 6px rgba(255,95,95,0.4); }
+
 /* ── VIGNETTE ── */
 body::before {
   content: ''; position: fixed; inset: 0;
@@ -761,6 +781,88 @@ body::after {
   </div>
 </div>
 
+<!-- ══ PAGE: LIFE METRICS ══ -->
+<div id="page-life" class="page">
+  <div class="page-title">life metrics</div>
+
+  <div class="seg">
+    <button class="seg-btn active" onclick="setLifeTab('caffeine',this)">Cafeína</button>
+    <button class="seg-btn" onclick="setLifeTab('sleep',this)">Sono</button>
+    <button class="seg-btn" onclick="setLifeTab('energy',this)">Energia</button>
+    <button class="seg-btn" onclick="setLifeTab('correlations',this)">Correlações</button>
+  </div>
+
+  <!-- CAFFEINE -->
+  <div id="life-caffeine">
+    <div id="caffeine-insight" class="lm-insight"><div class="lm-insight-label">Cafeína Atual</div>Carregando...</div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Cafeína no sistema</span></div>
+      <div class="chart-wrap tall"><canvas id="chartCaffeine"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Registrar dose</span></div>
+      <div class="field"><label>Horário (24h)</label><input type="text" id="cTime" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]"></div>
+      <div class="field"><label>Dose (mg)</label><input type="number" id="cDose" placeholder="100" min="0" max="600"></div>
+      <div class="field">
+        <label>Tipo</label>
+        <select id="cType">
+          <option value="espresso">Espresso (~63mg)</option>
+          <option value="cafe_filtrado">Café filtrado (~95mg)</option>
+          <option value="energy_drink">Energy drink (~80mg)</option>
+          <option value="suplemento">Suplemento (custom)</option>
+        </select>
+      </div>
+      <button class="btn-submit" onclick="saveCaffeine()">Salvar</button>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Hoje</span></div>
+      <div id="caffeine-logs"></div>
+    </div>
+  </div>
+
+  <!-- SLEEP -->
+  <div id="life-sleep" style="display:none">
+    <div id="sleep-cards"></div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Qualidade — 7 dias</span></div>
+      <div class="chart-wrap tall"><canvas id="chartSleepQ"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Registrar sono</span></div>
+      <div class="field"><label>Deitou (24h)</label><input type="text" id="sBedtime" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]"></div>
+      <div class="field"><label>Dormiu (24h)</label><input type="text" id="sSleep" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]"></div>
+      <div class="field"><label>Acordou (24h)</label><input type="text" id="sWake" placeholder="HH:MM" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]"></div>
+      <div class="field"><label>Qualidade (1–5)</label><input type="number" id="sQual" min="1" max="5" placeholder="3"></div>
+      <div class="field"><label>Acordou (vezes)</label><input type="number" id="sWakeups" min="0" placeholder="0"></div>
+      <button class="btn-submit" onclick="saveSleep()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- ENERGY -->
+  <div id="life-energy" style="display:none">
+    <div id="energy-insight" class="lm-insight"><div class="lm-insight-label">Energia</div>Registre energia 3x ao dia para ver insights.</div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Energia hoje</span></div>
+      <div class="chart-wrap tall"><canvas id="chartEnergy"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-label">Registrar energia</span></div>
+      <div class="field"><label>Manhã (1–10)</label><input type="number" id="eMorning" min="1" max="10" placeholder="7"></div>
+      <div class="field"><label>Tarde (1–10)</label><input type="number" id="eAfternoon" min="1" max="10" placeholder="5"></div>
+      <div class="field"><label>Noite (1–10)</label><input type="number" id="eNight" min="1" max="10" placeholder="6"></div>
+      <button class="btn-submit" onclick="saveEnergy()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- CORRELATIONS -->
+  <div id="life-correlations" style="display:none">
+    <div class="section">
+      <div class="section-header"><span class="section-label">Insights automáticos</span></div>
+      <div id="correlation-insights"></div>
+    </div>
+  </div>
+</div>
+
 <!-- BOTTOM NAV -->
 <nav class="bnav">
   <button class="bnav-btn active" onclick="switchPage('home',this)">
@@ -777,6 +879,9 @@ body::after {
   </button>
   <button class="bnav-btn" onclick="switchPage('game',this)">
     <span class="icon">◈</span><span>Level</span><span class="dot"></span>
+  </button>
+  <button class="bnav-btn" onclick="switchPage('life',this)">
+    <span class="icon">⬡</span><span>Life</span><span class="dot"></span>
   </button>
 </nav>
 
@@ -1746,11 +1851,352 @@ function renderAll() {
   renderStats();
   renderGame();
   renderLang();
+  renderLife();
+}
+
+// ── LIFE METRICS ──
+let LM = { caffeine: [], sleep: [], energy: [] };
+let lmActiveTab = 'caffeine';
+let chartCaffeine = null, chartSleepQ = null, chartEnergy = null;
+
+function setLifeTab(tab, btn) {
+  ['caffeine','sleep','energy','correlations'].forEach(t => {
+    document.getElementById('life-'+t).style.display = 'none';
+  });
+  document.querySelectorAll('#page-life .seg-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('life-'+tab).style.display = 'block';
+  btn.classList.add('active');
+  lmActiveTab = tab;
+  renderLife();
+}
+
+function parseTimeToHours(timeStr) {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return h + m / 60;
+}
+
+function formatHour(decH) {
+  const h = Math.floor(((decH % 24) + 24) % 24);
+  const m = Math.round(((decH % 1) + 1) % 1 * 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function caffeineAtHour(hour, logs) {
+  return logs.reduce((sum, log) => {
+    const doseH = parseTimeToHours(log.time_str);
+    const elapsed = hour - doseH;
+    if (elapsed < 0) return sum;
+    return sum + log.dose_mg * Math.pow(2, -elapsed / 6);
+  }, 0);
+}
+
+function lastSafeDoseTime(doseMg, sleepHour = 23) {
+  if (doseMg <= 50) return sleepHour;
+  return sleepHour - 6 * Math.log2(doseMg / 50);
+}
+
+function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return 0;
+  const mx = xs.reduce((a,b) => a+b, 0) / n;
+  const my = ys.reduce((a,b) => a+b, 0) / n;
+  const num = xs.reduce((s,x,i) => s + (x-mx)*(ys[i]-my), 0);
+  const dX = Math.sqrt(xs.reduce((s,x) => s + (x-mx)**2, 0));
+  const dY = Math.sqrt(ys.reduce((s,y) => s + (y-my)**2, 0));
+  return (dX && dY) ? num / (dX * dY) : 0;
+}
+
+async function loadLifeMetrics() {
+  try {
+    const [cafRes, slpRes, engRes] = await Promise.all([
+      sbClient.from('caffeine_logs').select('*').eq('user_id', USER_ID).order('ts', {ascending:false}),
+      sbClient.from('sleep_logs').select('*').eq('user_id', USER_ID).order('ts', {ascending:false}),
+      sbClient.from('energy_logs').select('*').eq('user_id', USER_ID).order('ts', {ascending:false}),
+    ]);
+    if (!cafRes.error) LM.caffeine = cafRes.data || [];
+    if (!slpRes.error) LM.sleep    = slpRes.data || [];
+    if (!engRes.error) LM.energy   = engRes.data || [];
+    renderLife();
+  } catch(e) { console.error('loadLifeMetrics:', e); }
+}
+
+async function saveCaffeine() {
+  const timeStr = document.getElementById('cTime').value;
+  const dose    = parseFloat(document.getElementById('cDose').value);
+  const type    = document.getElementById('cType').value;
+  if (!timeStr || isNaN(dose) || dose <= 0) { showToast('Informe horário e dose'); return; }
+  const { data, error } = await sbClient.from('caffeine_logs')
+    .insert({ user_id: USER_ID, date: today(), time_str: timeStr, dose_mg: dose, type, ts: new Date().toISOString() })
+    .select().single();
+  if (error) { showToast('Erro ao salvar'); console.error(error); return; }
+  LM.caffeine.unshift(data);
+  document.getElementById('cDose').value = '';
+  showToast('Dose registrada');
+  renderLife();
+}
+
+async function saveSleep() {
+  const bedtime   = document.getElementById('sBedtime').value;
+  const sleepTime = document.getElementById('sSleep').value;
+  const wakeTime  = document.getElementById('sWake').value;
+  const qual      = parseInt(document.getElementById('sQual').value);
+  const wakeups   = parseInt(document.getElementById('sWakeups').value) || 0;
+  if (!bedtime || !sleepTime || !wakeTime || isNaN(qual) || qual < 1 || qual > 5) {
+    showToast('Preencha todos os campos'); return;
+  }
+  const { data, error } = await sbClient.from('sleep_logs')
+    .insert({ user_id: USER_ID, date: today(), bedtime, sleep_time: sleepTime, wake_time: wakeTime, quality: qual, awakenings: wakeups, ts: new Date().toISOString() })
+    .select().single();
+  if (error) { showToast('Erro ao salvar'); console.error(error); return; }
+  LM.sleep.unshift(data);
+  showToast('Sono registrado');
+  renderLife();
+}
+
+async function saveEnergy() {
+  const morning   = parseInt(document.getElementById('eMorning').value) || null;
+  const afternoon = parseInt(document.getElementById('eAfternoon').value) || null;
+  const night     = parseInt(document.getElementById('eNight').value) || null;
+  if (!morning && !afternoon && !night) { showToast('Informe ao menos um valor'); return; }
+  const { data, error } = await sbClient.from('energy_logs')
+    .insert({ user_id: USER_ID, date: today(), morning, afternoon, night, ts: new Date().toISOString() })
+    .select().single();
+  if (error) { showToast('Erro ao salvar'); console.error(error); return; }
+  LM.energy.unshift(data);
+  showToast('Energia registrada');
+  renderLife();
+}
+
+function renderLife() {
+  if (!document.getElementById('page-life').classList.contains('active')) return;
+  if      (lmActiveTab === 'caffeine')     renderCaffeineTab();
+  else if (lmActiveTab === 'sleep')        renderSleepTab();
+  else if (lmActiveTab === 'energy')       renderEnergyTab();
+  else if (lmActiveTab === 'correlations') renderCorrelationsTab();
+}
+
+function renderCaffeineTab() {
+  const todayLogs = LM.caffeine.filter(l => l.date === today());
+  const nowH = new Date().getHours() + new Date().getMinutes() / 60;
+  const currentMg = caffeineAtHour(nowH, todayLogs);
+  const SLEEP_HOUR = 23;
+  const avgDose = LM.caffeine.length
+    ? LM.caffeine.reduce((s,l) => s + l.dose_mg, 0) / LM.caffeine.length
+    : 100;
+  const safeH = lastSafeDoseTime(avgDose, SLEEP_HOUR);
+  const safeStr = formatHour(safeH);
+  const lateDose = todayLogs.some(l => parseTimeToHours(l.time_str) > safeH);
+
+  const insight = document.getElementById('caffeine-insight');
+  if (lateDose) {
+    insight.className = 'lm-insight lm-alert';
+    insight.innerHTML = `<div class="lm-insight-label">⚠ Alerta de Sono</div>Dose após ${safeStr} pode atrasar o sono. ${Math.round(currentMg)}mg ainda no sistema.`;
+  } else {
+    insight.className = 'lm-insight';
+    insight.innerHTML = `<div class="lm-insight-label">Cafeína Atual</div>${Math.round(currentMg)}mg no sistema. Última dose possível hoje: <strong>${safeStr}</strong>`;
+  }
+
+  // Decay curve 0–24h in 30min steps
+  const pts = Array.from({length: 49}, (_, i) => ({
+    label: i % 2 === 0 ? `${String(i/2|0).padStart(2,'0')}h` : '',
+    v: Math.max(0, caffeineAtHour(i * 0.5, todayLogs)),
+  }));
+
+  const ctx = document.getElementById('chartCaffeine').getContext('2d');
+  if (chartCaffeine) chartCaffeine.destroy();
+  chartCaffeine = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: pts.map(p => p.label),
+      datasets: [
+        { label: 'Cafeína', data: pts.map(p => p.v), borderColor: 'rgba(200,150,10,0.85)', backgroundColor: 'rgba(200,150,10,0.07)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+        { label: 'Limiar', data: Array(49).fill(50), borderColor: 'rgba(255,95,95,0.5)', borderDash: [4,4], pointRadius: 0, borderWidth: 1, fill: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555', maxRotation: 0 } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555', callback: v => v+'mg' }, min: 0 }
+      }
+    }
+  });
+
+  const el = document.getElementById('caffeine-logs');
+  if (!todayLogs.length) {
+    el.innerHTML = '<div style="color:var(--sub);font-size:13px;padding:16px 0">Nenhuma dose hoje</div>';
+    return;
+  }
+  el.innerHTML = todayLogs.map(l => `
+    <div class="row-stat">
+      <div><div class="row-stat-name">${l.type.replace('_',' ')}</div><div class="row-stat-sub">${l.time_str}</div></div>
+      <div class="row-stat-val">${l.dose_mg}mg</div>
+    </div>`).join('');
+}
+
+function renderSleepTab() {
+  const cardsEl = document.getElementById('sleep-cards');
+  const recent = LM.sleep[0];
+
+  if (recent) {
+    const bedH  = parseTimeToHours(recent.bedtime);
+    const slpH  = parseTimeToHours(recent.sleep_time);
+    const wakeH = parseTimeToHours(recent.wake_time);
+    const timeInBed   = ((wakeH - bedH)  + 24) % 24;
+    const actualSleep = ((wakeH - slpH)  + 24) % 24;
+    const latencyMin  = Math.round(((slpH - bedH) + 24) % 24 * 60);
+    const effPct = Math.round((actualSleep / timeInBed) * 100);
+    const last7Total = LM.sleep.slice(0,7).reduce((s,l) => {
+      const wH = parseTimeToHours(l.wake_time), sH = parseTimeToHours(l.sleep_time);
+      return s + ((wH - sH) + 24) % 24;
+    }, 0);
+    const debt = Math.max(0, 56 - last7Total);
+    cardsEl.innerHTML = `
+      <div class="mini-grid" style="border-radius:var(--r);overflow:hidden;margin-bottom:28px">
+        <div class="mini-card"><div class="mini-card-label">Duração</div><div><span class="mini-card-val">${actualSleep.toFixed(1)}</span><span class="mini-card-unit">h</span></div><div class="mini-card-sub">Qualidade: ${recent.quality}/5</div></div>
+        <div class="mini-card"><div class="mini-card-label">Eficiência</div><div><span class="mini-card-val">${effPct}</span><span class="mini-card-unit">%</span></div><div class="mini-card-sub">Latência: ${latencyMin}min</div></div>
+        <div class="mini-card"><div class="mini-card-label">Acordou</div><div><span class="mini-card-val">${recent.awakenings}</span><span class="mini-card-unit">x</span></div><div class="mini-card-sub">na noite</div></div>
+        <div class="mini-card"><div class="mini-card-label">Débito sem.</div><div><span class="mini-card-val">${debt.toFixed(1)}</span><span class="mini-card-unit">h</span></div><div class="mini-card-sub">vs 8h/noite</div></div>
+      </div>`;
+  } else {
+    cardsEl.innerHTML = '';
+  }
+
+  const last7 = LM.sleep.slice(0,7).reverse();
+  const ctx = document.getElementById('chartSleepQ').getContext('2d');
+  if (chartSleepQ) chartSleepQ.destroy();
+  chartSleepQ = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: last7.map(l => l.date.slice(5)),
+      datasets: [{ data: last7.map(l => l.quality), backgroundColor: last7.map(l => l.quality >= 4 ? 'rgba(200,150,10,0.65)' : l.quality >= 3 ? 'rgba(91,156,246,0.6)' : 'rgba(255,95,95,0.5)'), borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' }, min: 0, max: 5 }
+      }
+    }
+  });
+}
+
+function renderEnergyTab() {
+  const todayEntry = LM.energy.find(e => e.date === today());
+  const insight = document.getElementById('energy-insight');
+
+  if (todayEntry) {
+    const vals = [
+      { label: 'Manhã',  h: 8,  v: todayEntry.morning },
+      { label: 'Tarde',  h: 14, v: todayEntry.afternoon },
+      { label: 'Noite',  h: 20, v: todayEntry.night },
+    ].filter(x => x.v != null);
+    if (vals.length) {
+      const peak  = vals.reduce((a,b) => b.v > a.v ? b : a);
+      const crash = vals.reduce((a,b) => b.v < a.v ? b : a);
+      insight.className = 'lm-insight';
+      insight.innerHTML = `<div class="lm-insight-label">Pico de Energia</div>
+        Pico: <strong>${peak.label}</strong> (${peak.v}/10) · Queda: ${crash.label} (${crash.v}/10)<br>
+        <span style="color:var(--green);font-size:13px">Melhor horário pra estudar: ${peak.h}h–${peak.h+3}h</span>`;
+    }
+  }
+
+  const ctx = document.getElementById('chartEnergy').getContext('2d');
+  if (chartEnergy) chartEnergy.destroy();
+
+  if (todayEntry) {
+    const points = [
+      { x: '8h',  y: todayEntry.morning },
+      { x: '14h', y: todayEntry.afternoon },
+      { x: '20h', y: todayEntry.night },
+    ].filter(p => p.y != null);
+    chartEnergy = new Chart(ctx, {
+      type: 'line',
+      data: { labels: points.map(p => p.x), datasets: [{ data: points.map(p => p.y), borderColor: 'rgba(91,156,246,0.85)', backgroundColor: 'rgba(91,156,246,0.07)', fill: true, tension: 0.4, pointRadius: 5, pointBackgroundColor: 'rgba(91,156,246,0.9)', borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' }, min: 1, max: 10 } } }
+    });
+  } else {
+    const last7 = LM.energy.slice(0,7).reverse();
+    chartEnergy = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: last7.map(e => e.date.slice(5)),
+        datasets: [{ data: last7.map(e => { const vs = [e.morning,e.afternoon,e.night].filter(v=>v!=null); return vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : null; }), backgroundColor: 'rgba(91,156,246,0.55)', borderRadius: 4 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#555' }, min: 1, max: 10 } } }
+    });
+  }
+}
+
+function renderCorrelationsTab() {
+  const el = document.getElementById('correlation-insights');
+  const sleepByDate = {}, energyByDate = {};
+  LM.sleep.forEach(s => { sleepByDate[s.date] = s; });
+  LM.energy.forEach(e => { energyByDate[e.date] = e; });
+
+  const insights = [];
+
+  // Late caffeine (>17h) vs sleep quality
+  const lateDates = new Set(LM.caffeine.filter(c => parseTimeToHours(c.time_str) > 17).map(c => c.date));
+  const withLate    = LM.sleep.filter(s => lateDates.has(s.date)).map(s => s.quality);
+  const withoutLate = LM.sleep.filter(s => !lateDates.has(s.date)).map(s => s.quality);
+  if (withLate.length >= 2 && withoutLate.length >= 2) {
+    const diff = withLate.reduce((a,b)=>a+b,0)/withLate.length - withoutLate.reduce((a,b)=>a+b,0)/withoutLate.length;
+    insights.push({ label: `Cafeína após 17h → sono ${diff>=0?'+':''}${diff.toFixed(1)}pts`, sub: `${withLate.length} noites c/ cafeína tardia vs ${withoutLate.length} sem`, sign: diff < 0 ? 'neg' : 'pos' });
+  }
+
+  // Sleep quality vs next-day morning energy
+  const sqPairs = Object.keys(sleepByDate).map(d => energyByDate[d] && energyByDate[d].morning != null ? { x: sleepByDate[d].quality, y: energyByDate[d].morning } : null).filter(Boolean);
+  if (sqPairs.length >= 3) {
+    const r = pearson(sqPairs.map(p=>p.x), sqPairs.map(p=>p.y));
+    insights.push({ label: 'Qualidade sono → energia manhã', sub: `r = ${r.toFixed(2)} (${sqPairs.length} dias)`, sign: r > 0.3 ? 'pos' : r < -0.3 ? 'neg' : 'neu' });
+  }
+
+  // Sleep duration vs afternoon energy
+  const durPairs = Object.keys(sleepByDate).map(d => {
+    const s = sleepByDate[d], e = energyByDate[d];
+    if (!e || e.afternoon == null) return null;
+    const dur = ((parseTimeToHours(s.wake_time) - parseTimeToHours(s.sleep_time)) + 24) % 24;
+    return { x: dur, y: e.afternoon };
+  }).filter(Boolean);
+  if (durPairs.length >= 3) {
+    const r = pearson(durPairs.map(p=>p.x), durPairs.map(p=>p.y));
+    insights.push({ label: 'Duração sono → energia tarde', sub: `r = ${r.toFixed(2)} (${durPairs.length} dias)`, sign: r > 0.3 ? 'pos' : r < -0.3 ? 'neg' : 'neu' });
+  }
+
+  // Sleep efficiency vs overall energy
+  const effPairs = Object.keys(sleepByDate).map(d => {
+    const s = sleepByDate[d], e = energyByDate[d];
+    if (!e) return null;
+    const tib = ((parseTimeToHours(s.wake_time) - parseTimeToHours(s.bedtime)) + 24) % 24;
+    const act = ((parseTimeToHours(s.wake_time) - parseTimeToHours(s.sleep_time)) + 24) % 24;
+    const eff = tib > 0 ? act / tib * 100 : 0;
+    const vals = [e.morning, e.afternoon, e.night].filter(v => v != null);
+    return vals.length ? { x: eff, y: vals.reduce((a,b)=>a+b,0)/vals.length } : null;
+  }).filter(Boolean);
+  if (effPairs.length >= 3) {
+    const r = pearson(effPairs.map(p=>p.x), effPairs.map(p=>p.y));
+    insights.push({ label: 'Eficiência sono → energia geral', sub: `r = ${r.toFixed(2)} (${effPairs.length} dias)`, sign: r > 0.3 ? 'pos' : r < -0.3 ? 'neg' : 'neu' });
+  }
+
+  if (!insights.length) {
+    el.innerHTML = '<div style="color:var(--sub);font-size:13px;padding:24px 0;text-align:center">Registre pelo menos 3 dias de dados para ver correlações.</div>';
+    return;
+  }
+  el.innerHTML = insights.map(ins => `
+    <div class="corr-item">
+      <div class="corr-label">${ins.label}</div>
+      <div class="corr-val ${ins.sign}">${ins.sub}</div>
+    </div>`).join('');
 }
 
 loadGoals();
 filterSubs();
 loadLogsFromSupabase();
+loadLifeMetrics();
 </script>
 </body>
 </html>
