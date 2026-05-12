@@ -2155,7 +2155,7 @@ function renderCaffeineTab() {
 
   const SLEEP_HOUR = 23;
   const SLEEP_THRESHOLD = 50;
-  const DESIRED_DOSE = 100; // User could make this customizable
+  const NEXT_DOSE = 80;
 
   // Calculate timeline: now, +3h, +6h, sleep
   const est_now = currentMg;
@@ -2163,9 +2163,18 @@ function renderCaffeineTab() {
   const est_plus6h = caffeineAtHour(nowH + 6, todayLogs, halfLife);
   const est_sleep = caffeineAtHour(SLEEP_HOUR, todayLogs, halfLife);
 
-  // Last safe dose time for DESIRED_DOSE
-  const safeH = lastSafeDoseTime(DESIRED_DOSE, SLEEP_HOUR, halfLife, SLEEP_THRESHOLD);
-  const safeStr = formatHour(safeH);
+  // Next safe dose: find latest time to take NEXT_DOSE without exceeding threshold at sleep,
+  // accounting for already-accumulated caffeine committed to sleep hour.
+  const remaining = SLEEP_THRESHOLD - est_sleep;
+  let safeH;
+  if (remaining <= 0) {
+    safeH = -Infinity; // already over threshold without any new dose
+  } else if (remaining >= NEXT_DOSE) {
+    safeH = SLEEP_HOUR; // new dose decays fully by sleep regardless of when taken
+  } else {
+    safeH = SLEEP_HOUR - halfLife * Math.log2(NEXT_DOSE / remaining);
+  }
+  const safeStr = safeH === -Infinity ? 'Não seguro hoje' : formatHour(safeH);
 
   const nearThreshold = est_sleep > SLEEP_THRESHOLD - 10; // Alert if within 10mg of threshold
   const isAlert = nearThreshold || todayLogs.some(l => parseTimeToHours(l.time_str) > safeH);
@@ -2194,7 +2203,7 @@ function renderCaffeineTab() {
         </tr>
       </table>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--green);text-shadow:0 0 6px rgba(200,150,10,0.4)">
-        <strong>Próxima dose segura (${DESIRED_DOSE}mg):</strong> até <strong>${safeStr}</strong>
+        <strong>Próxima dose segura (${NEXT_DOSE}mg):</strong> ${safeH === -Infinity ? `<strong style="color:var(--red)">${safeStr}</strong>` : `até <strong>${safeStr}</strong>`}
       </div>
     </div>`;
 
